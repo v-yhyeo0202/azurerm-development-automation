@@ -1,0 +1,144 @@
+import asyncio
+import glob
+import copilot
+import langchain_core
+import langchain_core.language_models
+import os
+import re
+import subprocess
+import yaml
+
+import codeGenerator
+
+with open('config.yml') as f:
+    dictConfig = yaml.load(f, Loader = yaml.FullLoader)
+
+class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
+    generation: str = ''
+    reJson: re.Pattern = re.compile(r'```json\s*(\{(?:.|\s)*\})\s*```')
+    bSchema: bool = False
+
+    def __init__(self):
+        super().__init__()
+
+        return
+
+    async def send(self, listInput, _model):
+        self.generation = ''
+
+        async with copilot.CopilotClient(
+            copilot.SubprocessConfig(
+                cwd = dictConfig['path']['azurerm']
+            )
+        ) as client:
+            async with await client.create_session(
+                model = _model,
+                reasoning_effort = None if _model == 'claude-haiku-4.5' else 'High',
+                on_permission_request = copilot.session.PermissionHandler.approve_all,
+                streaming = True
+            ) as session:
+                for i, dictInput in enumerate(listInput):
+                    print('Running Copilot with input:')
+                    print(f"Input: {dictInput['prompt']}")
+                    print()
+
+                    doneEvent = asyncio.Event()
+
+                    def onEvent(event):
+                        match event.data:
+                            case copilot.generated.session_events.AssistantMessageDeltaData() | copilot.generated.session_events.AssistantReasoningDeltaData() as data:
+                                delta = data.delta_content or ''
+                                print(delta, end = '', flush = True)
+
+                                if i == len(listInput) - 1:
+                                    self.generation += delta
+                            case copilot.generated.session_events.SessionIdleData():
+                                doneEvent.set()
+
+                    session.on(onEvent)
+                    await session.send(dictInput['prompt'], attachments = dictInput['attachments'] if 'attachments' in dictInput else None)
+                    await doneEvent.wait()
+
+        if self.bSchema:
+            listGeneration = self.generation.split('\n\n')
+
+            for i in range(len(listGeneration) - 1, -1, -1):
+                if self.reJson.search(listGeneration[i]):
+                    self.generation = listGeneration[i]
+
+                    break
+        else:
+            self.generation = ''
+
+        return self.generation
+
+    def _generate(self, dummyMessage, stop = None, model = dictConfig['defaultModel'], listInput = None):
+        listExpandedInput = []
+
+        for dictInput in listInput:
+            if 'attachments' in dictInput:
+                listExpandedInput.append(
+                    {
+                        'prompt': dictInput['prompt'],
+                        'attachments': [copilot.session.FileAttachment(type = 'file', path = j) for i in dictInput['attachments'] for j in glob.glob(i)]
+                    }
+                )
+            else:
+                listExpandedInput.append(dictInput)
+
+        asyncio.run(self.send(listExpandedInput, model))
+        chatResult = langchain_core.outputs.ChatResult(
+            generations = [
+                langchain_core.outputs.ChatGeneration(
+                    message = langchain_core.messages.AIMessage(self.generation)
+                )
+            ]
+        )
+
+        return chatResult
+
+    def with_structured_output(self, schema):
+        self.bSchema = True
+        llm = self.bind()
+        outputParser = langchain_core.output_parsers.PydanticOutputParser(pydantic_object = schema)
+
+        return llm | outputParser
+
+    @property
+    def _llm_type(self):
+
+        return "copilot"
+
+def runCommand(listCommand):
+    print(f"Running command:")
+
+    for listSubCommand in listCommand:
+        print(' '.join(listSubCommand))
+        result = subprocess.run(
+            listSubCommand,
+            cwd = dictConfig['path']['azurerm'],
+            capture_output = True,
+            text = True
+        )
+        print(result.stdout)
+        print(result.stderr)
+
+    return
+
+def generateCode(functionName, dictInput):
+    if os.path.exists(dictInput['path']):
+        print(f"File {dictInput['path']} already exists, skipping code generation")
+
+        return
+
+    print(f'Generating code with {functionName}')
+
+    functionName = functionName[0].lower() + functionName[1:]
+    code = getattr(codeGenerator, functionName)(dictInput)
+    directoryPath = os.path.dirname(dictInput['path'])
+    os.makedirs(directoryPath, exist_ok = True)
+
+    with open(dictInput['path'], 'w') as f:
+        f.write(code)
+
+    return

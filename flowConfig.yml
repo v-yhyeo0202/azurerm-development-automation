@@ -1,0 +1,40 @@
+firstStep: GenerateResourceSchema
+step:
+  FlattenProperty:
+    input:
+    - prompt: 'Flatten child properties in schema of [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go).
+        If the flattened child property name is same as any existing resource name,
+        append the child property name to that of parent. These apply recursively
+        to: 1. `TypeList` or `TypeSet` parent property that contains only 1 child
+        property. 2. `TypeList` parent property that has `MaxItem` as `1` and less
+        than 3 child properties. Carry out any necessary modification after flattening.'
+    model: claude-sonnet-4.6
+    nextStep: GenerateResourceMethod
+    type: copilot
+  GenerateResourceMethod:
+    input:
+    - prompt: 'Generate CRUD methods in [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go)
+        according to the following rules: 1. `expand` method should only be created
+        when assigning more than 1 child property to a Go SDK parent property. 2.
+        `flatten` method should only be created to return a Terraform parent property
+        in type of `interface` and more than 1 child property.'
+    model: claude-sonnet-4.6
+    nextStep: ''
+    type: copilot
+  GenerateResourceSchema:
+    input:
+    - attachments:
+      - /home/v-yyeo/azurerm-development-automation/attachment/GetPortalPropertyOutput.json
+      prompt: 'Create [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go)
+        based on [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/azurefleet/resource-manager/Microsoft.AzureFleet/AzureFleet/stable/2024-11-01/azurefleet.json)
+        accoding to the following rules: 1. Generate resource schema and other methods
+        except CRUD. 2. Only the properties listed in attached file should be included.
+        3. Write typed resource. 4. Apply `Optional` behavior to all properties except
+        `name`, `location`, `resource_group_name`. 5. Do not apply `ForceNew`, `ValidateFunc`,
+        and `Sensitive` behaviors to any properties except `name`, `location`, and
+        `resource_group_name`. 6. If specification property has `array` parent property
+        (this applies recursively), create the corresponding property as child property
+        under `TypeList` parent property in Terraform schema.'
+    model: claude-sonnet-4.6
+    nextStep: FlattenProperty
+    type: copilot

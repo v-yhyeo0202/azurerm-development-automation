@@ -1,0 +1,13 @@
+path:
+  main: '/home/v-yyeo/azurerm-development-automation'
+  code: 'azurerm-development-automation'
+  attachment: 'attachment'
+  azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
+  services: 'internal/services/computefleet'
+  go-azure-sdk: 'vendor/github.com/hashicorp/go-azure-sdk'
+
+defaultModel: 'claude-haiku-4.5'
+resource: 'compute_fleet'
+specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/azurefleet/resource-manager/Microsoft.AzureFleet/AzureFleet/stable/2024-11-01/azurefleet.json'
+serviceName: 'Compute Fleet'
+flow: 'resource' # registration2PortalProperty  resource
