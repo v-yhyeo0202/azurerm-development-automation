@@ -1,7 +1,10 @@
 import pydantic
 
 class PreGenerateSdkOutput(pydantic.BaseModel):
-    bSdkExist: bool = pydantic.Field(description = 'Whether SDK for resource already exists')
+    sdkExist: str = pydantic.Field(description = 'Whether SDK for resource already exists with value as `existLocally`, `existInRepo`, or `notExist`')
+    sdkPackage: str = pydantic.Field(description = 'Package path of SDK to be imported according to go-azure-sdk repository')
+
+class GenerateReplaceDirectiveOutput(pydantic.BaseModel):
     sdkPackage: str = pydantic.Field(description = 'Package path of SDK to be imported according to go-azure-sdk repository')
 
 class GetPortalPropertyOutput(pydantic.BaseModel):

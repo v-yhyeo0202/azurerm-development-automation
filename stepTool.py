@@ -9,6 +9,7 @@ import subprocess
 import yaml
 
 import codeGenerator
+import service
 
 with open('config.yml') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
@@ -109,14 +110,20 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
 
         return "copilot"
 
-def runCommand(listCommand):
+def runCommand(dictInput):
     print(f"Running command:")
 
-    for listSubCommand in listCommand:
+    for listSubCommand in dictInput['command']:
         print(' '.join(listSubCommand))
+        dictEnvironment = os.environ.copy()
+
+        if 'env' in dictInput:
+            dictEnvironment.update(dictInput['env'])
+
         result = subprocess.run(
             listSubCommand,
-            cwd = dictConfig['path']['azurerm'],
+            cwd = dictInput['cwd'] if 'cwd' in dictInput else dictConfig['path']['azurerm'],
+            env = dictEnvironment,
             capture_output = True,
             text = True
         )
@@ -134,7 +141,7 @@ def generateCode(functionName, dictInput):
     print(f'Generating code with {functionName}')
 
     functionName = functionName[0].lower() + functionName[1:]
-    code = getattr(codeGenerator, functionName)(dictInput)
+    code = getattr(codeGenerator, functionName)()
     directoryPath = os.path.dirname(dictInput['path'])
     os.makedirs(directoryPath, exist_ok = True)
 
@@ -142,3 +149,35 @@ def generateCode(functionName, dictInput):
         f.write(code)
 
     return
+
+listProcess = []
+
+def initializeService(functionName):
+    print(f'Initializing service with {functionName}')
+    functionName = functionName[0].lower() + functionName[1:]
+    process = getattr(service, functionName)()
+    listProcess.append(process)
+
+    return
+
+def terminateService():
+    print('Terminating services')
+
+    for process in listProcess:
+        process.terminate()
+        process.wait()
+
+    return
+
+def getNextStep(dictCurrentStepConfig, dictOutput = None):
+    if 'nextStep' not in dictCurrentStepConfig:
+
+        return None
+
+    if dictOutput and isinstance(dictCurrentStepConfig['nextStep'], dict):
+        key = list(dictCurrentStepConfig['nextStep'])[0]
+        nextStep = dictCurrentStepConfig['nextStep'][key][dictOutput[key]]
+    else:
+        nextStep = dictCurrentStepConfig['nextStep']
+
+    return nextStep

@@ -1,40 +1,197 @@
-firstStep: GenerateResourceSchema
+firstStep: GetPortalProperty
 step:
-  FlattenProperty:
+  EditMainServiceClient:
     input:
-    - prompt: 'Flatten child properties in schema of [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go).
-        If the flattened child property name is same as any existing resource name,
-        append the child property name to that of parent. These apply recursively
-        to: 1. `TypeList` or `TypeSet` parent property that contains only 1 child
-        property. 2. `TypeList` parent property that has `MaxItem` as `1` and less
-        than 3 child properties. Carry out any necessary modification after flattening.'
-    model: claude-sonnet-4.6
-    nextStep: GenerateResourceMethod
+    - prompt: Add [service](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/registration.go)
+        and [client](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/client/client.go)
+        to [main service file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/provider/services.go)
+        and [main client file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/clients/client.go)
+        respectively if have not done so.Decide whether to add untyped, typed, and
+        framework services based on interfaces of `Registration` structure in [service
+        file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/registration.go).
+    nextStep: PreGenerateSdk
     type: copilot
-  GenerateResourceMethod:
-    input:
-    - prompt: 'Generate CRUD methods in [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go)
-        according to the following rules: 1. `expand` method should only be created
-        when assigning more than 1 child property to a Go SDK parent property. 2.
-        `flatten` method should only be created to return a Terraform parent property
-        in type of `interface` and more than 1 child property.'
-    model: claude-sonnet-4.6
-    nextStep: ''
-    type: copilot
-  GenerateResourceSchema:
+  EditResourceClient:
     input:
     - attachments:
-      - /home/v-yyeo/azurerm-development-automation/attachment/GetPortalPropertyOutput.json
-      prompt: 'Create [compute_fleet_resource.go](/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm/internal/services/computefleet/compute_fleet_resource.go)
-        based on [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/azurefleet/resource-manager/Microsoft.AzureFleet/AzureFleet/stable/2024-11-01/azurefleet.json)
-        accoding to the following rules: 1. Generate resource schema and other methods
-        except CRUD. 2. Only the properties listed in attached file should be included.
-        3. Write typed resource. 4. Apply `Optional` behavior to all properties except
-        `name`, `location`, `resource_group_name`. 5. Do not apply `ForceNew`, `ValidateFunc`,
-        and `Sensitive` behaviors to any properties except `name`, `location`, and
-        `resource_group_name`. 6. If specification property has `array` parent property
-        (this applies recursively), create the corresponding property as child property
-        under `TypeList` parent property in Terraform schema.'
+      - /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/PreGenerateSdkOutput.json
+      - /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/GenerateReplaceDirectiveOutput.json
+      prompt: 'Import `sdkPackage` listed in attached files to [client file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/client/client.go)
+        if have not done so. Add virtual_desktop_msix_package client in [client file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/client/client.go)
+        if have not done so. The error returned by client initialization should be
+        wrapped with `fmt.Errorf("building Resources Client: %+v", err)`.'
     model: claude-sonnet-4.6
-    nextStep: FlattenProperty
+    nextStep: GetPortalProperty
     type: copilot
+  GenerateApiDefinition:
+    input:
+      command:
+      - - make
+        - import
+      cwd: /home/v-yyeo/pandora/tools/importer-rest-api-specs
+      env:
+        SERVICES: DesktopVirtualization
+    nextStep: InitializePandoraDataApi
+    type: command
+  GenerateApiVersion:
+    input:
+    - prompt: Add API version in [Pandora resource-manager.hcl](/home/v-yyeo/pandora/config/resource-manager.hcl)
+        based on [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json)
+        if have not done so.
+    nextStep: GenerateApiDefinition
+    type: copilot
+  GenerateEmptyClient:
+    input:
+      path: /home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/client/client.go
+    nextStep: EditMainServiceClient
+    type: generateCode
+  GenerateEmptyRegistration:
+    input:
+      path: /home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/registration.go
+    nextStep: GenerateEmptyClient
+    type: generateCode
+  GenerateReplaceDirective:
+    input:
+    - prompt: Add replace directive in [go.mod file](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/go.mod)
+        for [local Go Azure SDK](/home/v-yyeo/go-azure-sdk/resource-manager) if have
+        not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager).
+        Check SDK package path of virtual_desktop_msix_package to be imported according
+        to [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json).
+        Under any circumstances, generate last output in JSON format according to
+        [`GenerateReplaceDirectiveOutput` class](/home/v-yyeo/azurerm-development-automation/azurerm-development-automation/dataStructure.py).
+    model: claude-sonnet-4.6
+    nextStep: GenerateSdkImport
+    outputSavePath: /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/GenerateReplaceDirectiveOutput.json
+    type: copilot
+  GenerateSdk:
+    input:
+      command:
+      - - go
+        - mod
+        - tidy
+      - - go
+        - mod
+        - vendor
+      - - rm
+        - /home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/dummy.go
+    nextStep: EditResourceClient
+    type: command
+  GenerateSdkImport:
+    input:
+      path: /home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/internal/services/desktopvirtualization/dummy.go
+    nextStep: GenerateSdk
+    type: generateCode
+  GenerateSdkWithPandora:
+    input:
+      command:
+      - - go
+        - build
+        - .
+      - - ./generator-go-sdk
+        - resource-manager
+        - generate
+        - --output-dir
+        - /home/v-yyeo/locally-generated-go-sdk
+        - --services
+        - DesktopVirtualization
+        - --data-api
+        - http://localhost:8083
+      - - cp
+        - -r
+        - /home/v-yyeo/locally-generated-go-sdk/resource-manager/desktopvirtualization
+        - /home/v-yyeo/go-azure-sdk/resource-manager
+      cwd: /home/v-yyeo/pandora/tools/generator-go-sdk
+    nextStep: UpdateGoAzureSdk
+    type: command
+  GetPortalProperty:
+    input:
+    - attachments:
+      - /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/portal*.png
+      prompt: 'Get list of virtual_desktop_msix_package properties which are present
+        in attached portal screenshots according to [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json)
+        according to the rules: 1. URI parameters are considered as properties too.
+        2. Child properties that are present in screenshots should be included. 3.
+        Exclude parent properties. 4. Exclude `Subscription`.. Under any circumstances,
+        generate last output in JSON format according to [`GetPortalPropertyOutput`
+        class](/home/v-yyeo/azurerm-development-automation/azurerm-development-automation/dataStructure.py).'
+    model: claude-opus-4.7
+    nextStep: ''
+    outputSavePath: /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/GetPortalPropertyOutput.json
+    type: copilot
+  InitializePandoraDataApi:
+    input: {}
+    nextStep: GenerateSdkWithPandora
+    type: service
+  PreGenerateSdk:
+    input:
+    - prompt: Check if [local Go Azure SDK with exact version](/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm/vendor/github.com/hashicorp/go-azure-sdk)
+        of virtual_desktop_msix_package exists according to [specification](https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json).
+        If not, check if the SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager).
+        If the SDK with exact version exists in the repository, check the SDK package
+        path to be imported. Under any circumstances, generate last output in JSON
+        format according to [`PreGenerateSdkOutput` class](/home/v-yyeo/azurerm-development-automation/azurerm-development-automation/dataStructure.py).
+    model: claude-sonnet-4.6
+    nextStep:
+      sdkExist:
+        existInRepo: GenerateSdkImport
+        existLocally: EditResourceClient
+        notExist: UpdatePandora
+    outputSavePath: /home/v-yyeo/azurerm-development-automation/attachment/virtual_desktop_msix_package/PreGenerateSdkOutput.json
+    type: copilot
+  UpdateGoAzureSdk:
+    input:
+      command:
+      - - git
+        - checkout
+        - main
+      - - git
+        - restore
+        - .
+      - - git
+        - fetch
+        - upstream
+      - - git
+        - merge
+        - upstream/main
+      - - git
+        - push
+        - origin
+        - main
+      cwd: /home/v-yyeo/go-azure-sdk
+    nextStep: GenerateReplaceDirective
+    type: command
+  UpdatePandora:
+    input:
+      command:
+      - - git
+        - checkout
+        - main
+      - - git
+        - fetch
+        - upstream
+      - - git
+        - merge
+        - upstream/main
+      - - git
+        - push
+        - origin
+        - main
+      - - git
+        - checkout
+        - -b
+        - virtual-desktop-msix-package
+      - - git
+        - checkout
+        - virtual-desktop-msix-package
+      - - git
+        - merge
+        - main
+      - - git
+        - submodule
+        - init
+      - - git
+        - submodule
+        - update
+      cwd: /home/v-yyeo/pandora
+    nextStep: GenerateApiVersion
+    type: command

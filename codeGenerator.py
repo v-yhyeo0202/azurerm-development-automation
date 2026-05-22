@@ -1,5 +1,5 @@
-import code
-
+import json
+import os
 import yaml
 
 with open('config.yml') as f:
@@ -11,7 +11,7 @@ header = '''
 '''.strip()
 service = dictConfig['path']['services'].split('/')[-1]
 
-def generateEmptyRegistration(dictInput):
+def generateEmptyRegistration():
     emptyRegistration = f'''
 {header}
 
@@ -71,7 +71,7 @@ func (r Registration) ListResources() []sdk.FrameworkListWrappedResource {{
 
     return emptyRegistration
 
-def generateEmptyClient(dictInput):
+def generateEmptyClient():
     emptyClient = f'''
 {header}
 
@@ -91,13 +91,25 @@ func NewClient(o *common.ClientOptions) (*Client, error) {{
 
     return emptyClient
 
-def generateSdkImport(dictInput):
-    sdkImport = f'''
+def generateSdkImport():
+	sdkPackage = ''
+	sdkPackagePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
+
+	with open(os.path.join(sdkPackagePath, 'PreGenerateSdkOutput.json')) as f:
+		dictPreGenerateSdkOutput = json.load(f)
+
+	if dictPreGenerateSdkOutput['sdkPackage']:
+		sdkPackage = dictPreGenerateSdkOutput['sdkPackage']
+	else:
+		with open(os.path.join(sdkPackagePath, 'GenerateReplaceDirectiveOutput.json')) as f:
+			sdkPackage = json.load(f)['sdkPackage']
+
+	sdkImport = f'''
 package {service}
 
 import (
-    "{dictInput['sdkPackage']}"
+    "{sdkPackage}"
 )
 '''.strip()
 
-    return sdkImport
+	return sdkImport
