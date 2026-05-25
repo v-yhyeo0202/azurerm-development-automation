@@ -14,4 +14,10 @@ specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specific
 serviceName: 'Desktop Virtualization'
 pandoraServiceName: ''
 dataApiPort: 8083
-flow: 'registration2PortalProperty' # registration2PortalProperty  resource
+
+# registration2PortalProperty
+# Check if properties returned are correct
+# schema
+# Set property default
+# crud
+flow: 'crud'

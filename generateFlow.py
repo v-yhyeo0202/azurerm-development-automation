@@ -14,6 +14,10 @@ outputFormatPrompt = functools.partial(
     'Under any circumstances, generate last output in JSON format according to [`{_step}Output` class]({dataStructurePath}).'.format,
     dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
 )
+vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
+pandoraServiceName = dictConfig['pandoraServiceName'] if dictConfig['pandoraServiceName'] else dictConfig['serviceName'].replace(' ', '')
+resourceFile = f"{dictConfig['resource']}_resource.go"
+resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], resourceFile)
 
 def getRegistration2PortalPropertyFlow():
     dictStepConfig = {
@@ -60,7 +64,6 @@ def getRegistration2PortalPropertyFlow():
 
     step = 'PreGenerateSdk'
     stepType = 'copilot'
-    vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
     outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -117,7 +120,6 @@ def getRegistration2PortalPropertyFlow():
     step = 'GenerateApiDefinition'
     stepType = 'command'
     workingDirectoryPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'importer-rest-api-specs')
-    pandoraServiceName = dictConfig['pandoraServiceName'] if dictConfig['pandoraServiceName'] else dictConfig['serviceName'].replace(' ', '')
     dictEnvironment = {
         'SERVICES': pandoraServiceName
     }
@@ -252,7 +254,7 @@ def getRegistration2PortalPropertyFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Get list of {dictConfig['resource']} properties which are present in attached portal screenshots according to [specification]({dictConfig['specification']}) according to the rules: {' '.join(listRule)} {outputFormatPrompt(_step = step)}",
+                'prompt': f"Get list of {dictConfig['resource']} properties which are present in attached portal screenshots according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)} {outputFormatPrompt(_step = step)}",
                 'attachments': listAttachmentPath
             }
         ],
@@ -263,23 +265,23 @@ def getRegistration2PortalPropertyFlow():
 
     return dictStepConfig
 
-def getResourceFlow():
+def getSchemaFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateSchema'
+        'firstStep': 'GenerateBehavior'
     }
 
     step = 'GenerateSchema'
     stepType = 'copilot'
-    resourceFile = f"{dictConfig['resource']}_resource.go"
-    resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], resourceFile)
+    commonSchemaPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-helpers', 'resourcemanager', 'commonschema')
     listRule = [
-        '1. Generate resource schema and other methods except CRUD.',
-        '2. Only the properties listed in attached file should be included.',
-        '3. Write typed resource.',
-        '4. Apply `Required` behavior to properties according to specification. Otherwise, apply `Optional` behavior.',
-        '5. Do not apply `ForceNew`, `ValidateFunc`, and `Sensitive` behaviors to any properties except `name`, `location`, and `resource_group_name`.',
-        '6. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
+        '1. Generate resource schema (`Arguments`), `Attributes` (can be empty if not applicable), `ModelObject`, `ResourceType`, and `IDValidationFunc` methods in sequence and other relevant codes.',
+        '2. Do not generate CRUD methods.',
+        '3. Only the properties listed in attached file should be included.',
+        '4. Generate typed resource.',
+        '5. Do not apply any behaviors except `Type` and `Elem` to all properties.',
+        f'6. Apply [common schema]({commonSchemaPath}) to `resource_group_name`, `location`, `tags`, `identity`, and `zone` if they exist in attached file.',
+        '7. Model structure name should contain `Model` suffix, not `ResourceModel` suffix.'
     ]
     listAttachmentPath = [
         os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'GetPortalPropertyOutput.json')
@@ -288,8 +290,31 @@ def getResourceFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Create [{resourceFile}]({resourcePath}) based on [specification]({dictConfig['specification']}) accoding to the rules: {' '.join(listRule)}",
+                'prompt': f"Create [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}",
                 'attachments': listAttachmentPath
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateBehavior'
+    }
+
+    step = 'GenerateBehavior'
+    stepType = 'copilot'
+    updatePath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method*update.go')
+    listRule = [
+        '1. Apply `Required` behavior to properties according to specification. Otherwise, apply `Optional` behavior.',
+        f'2. Apply `ForceNew` behavior to properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
+        f'3. Apply `ValidateFunc` behavior to ID properties using [Go Azure SDK validation methods]({vendorSdkPath}).',
+        f'4. Apply `ValidateFunc` behavior to properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
+        f"5. Apply `ValidateFunc` behavior to `TypeString` properties which their regular expression patterns or date formats are listed in specification.",
+        '6. Do not apply `Sensitive` behaviors.',
+        '7. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate behaviors to properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -306,21 +331,39 @@ def getResourceFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)} Carry out any necessary modification after flattening."
+                'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)} Carry out any necessary modifications after flattening."
             }
         ],
         'model': 'claude-sonnet-4.6',
         'nextStep': ''
     }
 
-    step = 'GenerateCrudMethod'
+    return dictStepConfig
+
+def getCrudFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateResourceIdentity'
+    }
+
+    step = 'GenerateCrud'
     stepType = 'copilot'
     listRule = [
-        '1. `expand` method should only be created when assigning more than 1 child property to a Go SDK parent property.',
-        '2. Do not expand Go SDK root level `Properties` structure.'
-        '2. `flatten` method should only be created to return a Terraform parent property in type of `interface` and more than 1 child property.',
-        '3. For `Optional` properties, check if properties are set before assigning to Go SDK structure.',
-        '4. For `Optional` `TypeInt` properties, use `metadata.ResourceDiff.GetRawConfig` to check if properties are not null before assigning to Go SDK structure.'
+        '1. CRUD methods should be generated between `ResourceType` and `IDValidationFunc` methods.',
+        '2. `Update` method should come directly after `Create` method.',
+        '3. Timeout should be 30 mins for `Create`, `Update`, and `Delete` methods and 5 mins for `Read` method.',
+        '4. For `Optional` properties, check if properties are set before assigning to `param` structure in `Create` method.',
+        '5. For `Optional` `TypeInt` properties, use `metadata.ResourceDiff.GetRawConfig` method to check if properties are not null before assigning to `param` structure.',
+        # '6. For `Optional` `TypeBool` properties with `Default`, assign the `Default` value to the properties in `Read` method if the properties are not returned by `client.Get` method',
+        '6. Instead of initialize `param` structure in `Update` method, use the model obtained from `client.Get` method.',
+        '7. Do not include properties with `ForceNew` behavior in `Update` method.',
+        '8. Only assign properties to `param` structure if `metadata.HasChange` method returns true for the properties in `Update` method.',
+        '9. Use `client.CreateOrUpdate` method instead of `client.Update` in `Update` method.',
+        '10. For `Optional` properties, only assign properties to `state` structure if the properties are returned by `client.Get` method in `Read` method.',
+        '11. Use `client` methods with polling whenever possible.',
+        '12. `expand` method should only be created when assigning more than 1 child property to a Go SDK parent property.',
+        '13. Do not expand Go SDK root level `Properties` structure.',
+        '14. `flatten` method should only be created to return a Terraform parent property in type of `interface` and more than 1 child property.'
     ]
     listAttachmentPath = [
         os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'PreGenerateSdkOutput.json'),
@@ -335,6 +378,32 @@ def getResourceFlow():
             }
         ],
         'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateResourceIdentity'
+    }
+
+    step = 'GenerateResourceIdentity'
+    stepType = 'copilot'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate resource identity in [{resourceFile}]({resourcePath}). Use `pluginsdk.SetResourceIdentityData` method before `return` statement in `Create` and `Read` methods. Add comment after `import` statement to generate resource identity test."
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'RefactorFlatten'
+    }
+
+    step = 'RefactorFlatten'
+    stepType = 'copilot'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Wrap part of `Read` method in [{resourceFile}]({resourcePath}) from `state` initialization to `metadata.Encode` method (inclusive) in a separate `flatten` method. The `flatten` method should be located directly after `IDValidationFunc` method."
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
         'nextStep': ''
     }
 
@@ -346,8 +415,10 @@ def generateFlow():
     match dictConfig['flow']:
         case 'registration2PortalProperty':
             dictStepConfig = getRegistration2PortalPropertyFlow()
-        case 'resource':
-            dictStepConfig = getResourceFlow()
+        case 'schema':
+            dictStepConfig = getSchemaFlow()
+        case 'crud':
+            dictStepConfig = getCrudFlow()
 
     with open('flowConfig.yml', 'w') as f:
         yaml.dump(dictStepConfig, f)
