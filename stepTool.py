@@ -8,7 +8,7 @@ import re
 import subprocess
 import yaml
 
-import codeGenerator
+import generator
 import service
 
 with open('config.yml') as f:
@@ -112,9 +112,16 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
 
 def runCommand(dictInput):
     print(f"Running command:")
+    dictOutput = {
+        'commandOutput': ''
+    }
 
     for listSubCommand in dictInput['command']:
-        print(' '.join(listSubCommand))
+        if isinstance(listSubCommand, str):
+            print(listSubCommand)
+        else:
+            print(' '.join(listSubCommand))
+
         dictEnvironment = os.environ.copy()
 
         if 'env' in dictInput:
@@ -125,23 +132,26 @@ def runCommand(dictInput):
             cwd = dictInput['cwd'] if 'cwd' in dictInput else dictConfig['path']['azurerm'],
             env = dictEnvironment,
             capture_output = True,
-            text = True
+            text = True,
+            shell = isinstance(listSubCommand, str)
         )
+
         print(result.stdout)
         print(result.stderr)
+        dictOutput['commandOutput'] += f'{result.stdout}\n{result.stderr}\n'
 
-    return
+    return dictOutput
 
-def generateCode(functionName, dictInput):
+def generateCodeOrConfig(functionName, dictInput):
     if os.path.exists(dictInput['path']):
         print(f"File {dictInput['path']} already exists, skipping code generation")
 
         return
 
-    print(f'Generating code with {functionName}')
+    print(f'Generating code or config with {functionName}')
 
     functionName = functionName[0].lower() + functionName[1:]
-    code = getattr(codeGenerator, functionName)()
+    code = getattr(generator, functionName)()
     directoryPath = os.path.dirname(dictInput['path'])
     os.makedirs(directoryPath, exist_ok = True)
 
@@ -152,10 +162,10 @@ def generateCode(functionName, dictInput):
 
 listProcess = []
 
-def initializeService(functionName):
+def initializeService(functionName, dictInput):
     print(f'Initializing service with {functionName}')
     functionName = functionName[0].lower() + functionName[1:]
-    process = getattr(service, functionName)()
+    process = getattr(service, functionName)(dictInput)
     listProcess.append(process)
 
     return

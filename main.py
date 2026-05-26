@@ -39,7 +39,7 @@ try:
                 step = stepTool.getNextStep(dictCurrentStepConfig, None if 'content' in dictOutput and not dictOutput['content'] else dictOutput)
                 print('\n')
             case 'command':
-                stepTool.runCommand(dictCurrentStepConfig['input'])
+                dictOutput = stepTool.runCommand(dictCurrentStepConfig['input'])
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
             case 'generateCode':
@@ -47,7 +47,7 @@ try:
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
             case 'service':
-                stepTool.initializeService(step)
+                stepTool.initializeService(step, dictCurrentStepConfig['input'])
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
 

@@ -9,3 +9,12 @@ class GenerateReplaceDirectiveOutput(pydantic.BaseModel):
 
 class GetPortalPropertyOutput(pydantic.BaseModel):
     listPortalProperty: dict[str, str] = pydantic.Field(description = 'Dictionary of resource properties according to portal screenshot, where key is the portal property and value is the corresponding specification property')
+
+class HttpLog(pydantic.BaseModel):
+    method: str
+    url: str
+    requestBody: str = ''
+    responseBody: str = ''
+
+class ListHttpLog(pydantic.BaseModel):
+    listHttpLog: list[HttpLog]

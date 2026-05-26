@@ -18,6 +18,9 @@ vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.co
 pandoraServiceName = dictConfig['pandoraServiceName'] if dictConfig['pandoraServiceName'] else dictConfig['serviceName'].replace(' ', '')
 resourceFile = f"{dictConfig['resource']}_resource.go"
 resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], resourceFile)
+testFile = f"{dictConfig['resource']}_resource_test.go"
+testPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], testFile)
+pascalCaseResource = ''.join([i.capitalize() for i in dictConfig['resource'].split('_')])
 
 def getRegistration2PortalPropertyFlow():
     dictStepConfig = {
@@ -26,7 +29,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateEmptyRegistration'
-    stepType = 'generateCode'
+    stepType = 'generateCodeOrConfig'
     servicePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'])
     registrationPath = os.path.join(servicePath, 'registration.go')
     dictStepConfig['step'][step] = {
@@ -38,7 +41,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateEmptyClient'
-    stepType = 'generateCode'
+    stepType = 'generateCodeOrConfig'
     clientPath = os.path.join(servicePath, 'client', 'client.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -146,7 +149,7 @@ def getRegistration2PortalPropertyFlow():
     step = 'GenerateSdkWithPandora'
     stepType = 'command'
     workingDirectoryPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'generator-go-sdk')
-    dataApiUrl = f"http://localhost:{dictConfig['dataApiPort']}"
+    dataApiUrl = f"http://localhost:{dictConfig['port']['dataApi']}"
     sourceSdkPath = os.path.join(dictConfig['path']['locallyGeneratedSdk'], 'resource-manager', pandoraServiceName.lower())
     destinationSdkPath = os.path.join(dictConfig['path']['sdk'], 'resource-manager')
     dictStepConfig['step'][step] = {
@@ -196,7 +199,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateSdkImport'
-    stepType = 'generateCode'
+    stepType = 'generateCodeOrConfig'
     dummyFilePath = os.path.join(servicePath, 'dummy.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -340,10 +343,69 @@ def getSchemaFlow():
 
     return dictStepConfig
 
+def addRunTest(dictStepConfig, tag, testName, nextStep):
+    step = f'InitializeHttpProxyListener_{tag}'
+    stepType = 'service'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'logFile': 'testHttpLog.json'
+        },
+        'nextStep': f'InitializeHttpProxy_{tag}'
+    }
+
+    step = f'InitializeHttpProxy_{tag}'
+    stepType = 'service'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {},
+        'nextStep': f'RunTest_{tag}'
+    }
+
+    step = f'RunTest_{tag}'
+    stepType = 'command'
+    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'testTerminalLog.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['make', 'testacc'],
+                ['curl', f"http://localhost:{dictConfig['port']['httpProxyListener']}/saveHttpLog"]
+            ],
+            'env': {
+                'TEST': f"./{dictConfig['path']['services']}",
+                'TESTARGS': f'-test.parallel 1 -test.run={testName}',
+                'TESTTIMEOUT': '1440m',
+                'http_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}",
+                'https_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}"
+            }
+        },
+        'outputSavePath': outputSavePath,
+        'nextStep': nextStep
+    }
+
+    return
+
+def addRemoveTestRedirectionConfig(dictStepConfig, tag, nextStep):
+    step = f'RemoveTestRedirectionConfig_{tag}'
+    stepType = 'command'
+    testRedirectionConfigPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'testRedirectionConfig.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['rm', testRedirectionConfigPath]
+            ]
+        },
+        'nextStep': nextStep
+    }
+
+    return
+
 def getCrudFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateResourceIdentity'
+        'firstStep': 'InitializeHttpProxyListener'
     }
 
     step = 'GenerateCrud'
@@ -383,11 +445,16 @@ def getCrudFlow():
 
     step = 'GenerateResourceIdentity'
     stepType = 'copilot'
+    listRule = [
+        '1. `sdk.ResourceWithIdentity` interface should be applied.',
+        '2. Use `pluginsdk.SetResourceIdentityData` method before `return` statement in `Create` and `Read` methods.',
+        '3. Add comment after `import` statement to generate resource identity test.'
+    ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate resource identity in [{resourceFile}]({resourcePath}). Use `pluginsdk.SetResourceIdentityData` method before `return` statement in `Create` and `Read` methods. Add comment after `import` statement to generate resource identity test."
+                'prompt': f"Generate resource identity in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -404,6 +471,47 @@ def getCrudFlow():
             }
         ],
         'model': 'claude-sonnet-4.6',
+        'nextStep': ''
+    }
+
+    step = 'GenerateBasicTest'
+    stepType = 'copilot'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties."
+            }
+        ],
+        'model': 'claude-opus-4.7',
+        'nextStep': ''
+    }
+
+    addRunTest(dictStepConfig, )
+
+    step = 'RedirectAfterTest'
+    stepType = 'copilot'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"After test is run, redirect to `GetPortalProperty` step if have not done so to get properties for next flow. {outputFormatPrompt(_step = step)}",
+                'attachments': [outputSavePath]
+            }
+        ],
+        'outputSavePath': outputSavePath,
+        'nextStep': 'GetPortalProperty'
+    }
+
+    step = 'Sleep'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['sleep', '600']
+            ]
+        },
         'nextStep': ''
     }
 
