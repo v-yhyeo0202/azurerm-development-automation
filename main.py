@@ -3,18 +3,14 @@ import langchain_core
 import yaml
 
 import dataStructure
-import generateFlow
+import flowGenerator
 import stepTool
 
 with open('config.yml') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
 try:
-    generateFlow.generateFlow()
-
-    with open('flowConfig.yml') as f:
-        dictStepConfig = yaml.load(f, Loader = yaml.FullLoader)
-
+    dictStepConfig = flowGenerator.getFlow()
     step = dictStepConfig['firstStep']
     dictOutput = None
 
@@ -50,6 +46,8 @@ try:
                 stepTool.initializeService(step, dictCurrentStepConfig['input'])
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
+            case 'controlFlow':
+                step = stepTool.controlFlow(step, dictCurrentStepConfig)
 
         if 'outputSavePath' in dictCurrentStepConfig:
             with open(dictCurrentStepConfig['outputSavePath'], 'w', encoding = 'utf-8') as f:

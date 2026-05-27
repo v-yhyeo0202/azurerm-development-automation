@@ -29,7 +29,7 @@ def initializeHttpProxy(dictInput):
 
 def initializeHttpProxyListener(dictInput):
     process = subprocess.Popen(
-        f'source {venvPath}; python httpProxyListener.py {dictInput["logFile"]}',
+        f'source {venvPath}; python httpProxyListener.py',
         env = dictEnvironment,
         executable = '/bin/bash',
         shell = True

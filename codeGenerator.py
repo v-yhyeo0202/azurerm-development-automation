@@ -113,21 +113,3 @@ import (
 '''.strip()
 
 	return sdkImport
-
-def generateIndex():
-	configPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'indexConfig.json')
-
-	if os.path.exists(configPath):
-		with open(configPath) as f:
-			dictIndexConfig = json.load(f)
-
-		dictIndexConfig['index'] += 1
-	else:
-		dictIndexConfig = {
-			'index': 0
-		}
-
-	with open(configPath, 'w') as f:
-		json.dump(dictIndexConfig, f, indent = 4, ascii = False)
-
-	return

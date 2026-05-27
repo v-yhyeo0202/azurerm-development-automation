@@ -2,7 +2,6 @@ import datetime
 import fastapi
 import json
 import os
-import sys
 import threading
 import uvicorn
 import yaml
@@ -25,11 +24,11 @@ async def logHttp(httpLog: dataStructure.HttpLog):
     return
 
 @app.get('/saveHttpLog')
-async def saveHttpLog():
-    logPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], sys.argv[1])
+async def saveHttpLog(savePath: str):
+    logPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], savePath)
 
     if os.path.exists(logPath):
-        renamedFile = f"{sys.argv[1].split('.')[0]}_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.{sys.argv[1].split('.')[1]}"
+        renamedFile = f"{savePath.split('.')[0]}_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.{savePath.split('.')[1]}"
         renamedPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], renamedFile)
         os.rename(logPath, renamedPath)
 

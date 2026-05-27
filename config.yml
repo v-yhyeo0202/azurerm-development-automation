@@ -22,5 +22,7 @@ port:
 # Check if properties returned are correct
 # schema
 # Set property default
-# crud
-flow: 'crud'
+# crud2BasicTest
+# Check if `TestAcc{pascalCaseResource}_basic` makes sense
+# basicTest
+flow: 'basicTest'

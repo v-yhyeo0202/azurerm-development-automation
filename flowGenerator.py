@@ -2,6 +2,8 @@ import functools
 import os
 import yaml
 
+import flowControl
+
 with open('config.yml') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
@@ -11,7 +13,7 @@ def formatMultilineCommand(inputString):
     return outputString
 
 outputFormatPrompt = functools.partial(
-    'Under any circumstances, generate last output in JSON format according to [`{_step}Output` class]({dataStructurePath}).'.format,
+    'UNDER ANY CIRCUMSTANCES, GENERATE LAST OUTPUT IN JSON FORMAT ACCORDING TO [`{_step}Output` CLASS]({dataStructurePath})!'.format,
     dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
 )
 vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
@@ -29,7 +31,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateEmptyRegistration'
-    stepType = 'generateCodeOrConfig'
+    stepType = 'generateCode'
     servicePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'])
     registrationPath = os.path.join(servicePath, 'registration.go')
     dictStepConfig['step'][step] = {
@@ -41,7 +43,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateEmptyClient'
-    stepType = 'generateCodeOrConfig'
+    stepType = 'generateCode'
     clientPath = os.path.join(servicePath, 'client', 'client.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -199,7 +201,7 @@ def getRegistration2PortalPropertyFlow():
     }
 
     step = 'GenerateSdkImport'
-    stepType = 'generateCodeOrConfig'
+    stepType = 'generateCode'
     dummyFilePath = os.path.join(servicePath, 'dummy.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -343,69 +345,10 @@ def getSchemaFlow():
 
     return dictStepConfig
 
-def addRunTest(dictStepConfig, tag, testName, nextStep):
-    step = f'InitializeHttpProxyListener_{tag}'
-    stepType = 'service'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {
-            'logFile': 'testHttpLog.json'
-        },
-        'nextStep': f'InitializeHttpProxy_{tag}'
-    }
-
-    step = f'InitializeHttpProxy_{tag}'
-    stepType = 'service'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {},
-        'nextStep': f'RunTest_{tag}'
-    }
-
-    step = f'RunTest_{tag}'
-    stepType = 'command'
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'testTerminalLog.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {
-            'command': [
-                ['make', 'testacc'],
-                ['curl', f"http://localhost:{dictConfig['port']['httpProxyListener']}/saveHttpLog"]
-            ],
-            'env': {
-                'TEST': f"./{dictConfig['path']['services']}",
-                'TESTARGS': f'-test.parallel 1 -test.run={testName}',
-                'TESTTIMEOUT': '1440m',
-                'http_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}",
-                'https_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}"
-            }
-        },
-        'outputSavePath': outputSavePath,
-        'nextStep': nextStep
-    }
-
-    return
-
-def addRemoveTestRedirectionConfig(dictStepConfig, tag, nextStep):
-    step = f'RemoveTestRedirectionConfig_{tag}'
-    stepType = 'command'
-    testRedirectionConfigPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'testRedirectionConfig.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {
-            'command': [
-                ['rm', testRedirectionConfigPath]
-            ]
-        },
-        'nextStep': nextStep
-    }
-
-    return
-
-def getCrudFlow():
+def getCrud2BasicTestFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'InitializeHttpProxyListener'
+        'firstStep': 'GenerateCrud'
     }
 
     step = 'GenerateCrud'
@@ -471,7 +414,7 @@ def getCrudFlow():
             }
         ],
         'model': 'claude-sonnet-4.6',
-        'nextStep': ''
+        'nextStep': 'GenerateBasicTest'
     }
 
     step = 'GenerateBasicTest'
@@ -487,20 +430,117 @@ def getCrudFlow():
         'nextStep': ''
     }
 
-    addRunTest(dictStepConfig, )
+    return dictStepConfig
 
-    step = 'RedirectAfterTest'
+def addRunTest(dictStepConfig, step, testName, nextStep):
+    stepType = 'command'
+    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}TerminalLog.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['make', 'testacc'],
+                ['curl', f"http://localhost:{dictConfig['port']['httpProxyListener']}/saveHttpLog?savePath={step}HttpLog.json"]
+            ],
+            'env': {
+                'TEST': f"./{dictConfig['path']['services']}",
+                'TESTARGS': f'-test.parallel 1 -test.run={testName}',
+                'TESTTIMEOUT': '1440m',
+                'http_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}",
+                'https_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}"
+            }
+        },
+        'outputSavePath': outputSavePath,
+        'nextStep': nextStep
+    }
+
+    return
+
+def configureRunBasicTest(step, dictStepConfig):
+    step = flowControl.generateIndex(step, dictStepConfig, 10)
+
+    return step
+
+def getBasicTestFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateBasicTest'
+    }
+
+    step = 'GenerateBasicTest'
     stepType = 'copilot'
+    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
+    listRule = [
+        f"Refer to [specification]({dictConfig['specification']}) to understand the properties.",
+        f"Refer to existing tests in [*_resource_test.go]({existingTestPath}) for prerequisite resources to create {dictConfig['resource']} if applicable."
+    ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"After test is run, redirect to `GetPortalProperty` step if have not done so to get properties for next flow. {outputFormatPrompt(_step = step)}",
-                'attachments': [outputSavePath]
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties according to the rules: {' '.join(listRule)}"
             }
         ],
+        'model': 'claude-opus-4.7',
+        'nextStep': 'InitializeHttpProxyListener'
+    }
+
+    step = 'InitializeHttpProxyListener'
+    stepType = 'service'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {},
+        'nextStep': 'InitializeHttpProxy'
+    }
+
+    step = 'InitializeHttpProxy'
+    stepType = 'service'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {},
+        'nextStep': 'ConfigureRunBasicTest'
+    }
+
+    step = 'ConfigureRunBasicTest'
+    stepType = 'controlFlow'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'packageName': 'flowGenerator'
+        },
+        'nextStep': 'RunBasicTest'
+    }
+
+    addRunTest(dictStepConfig, 'RunBasicTest', f'TestAcc{pascalCaseResource}_basic', 'EvaluateBasicTest')
+
+    step = 'EvaluateBasicTest'
+    stepType = 'copilot'
+    listRule = [
+        f"1. Check [{resourceFile}]({resourcePath}) and [specification]({dictConfig['specification']}) to find the solution.",
+        f'2. Add only one of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_basic` according to [specification]({dictConfig["specification"]}) if necessary, and do not do so if it is not necessary.',
+        f'3. If parent property is applied according to rule 1, only add the required child properties under the parent property according to [specification]({dictConfig["specification"]}). If there is no required child property, add any one of the child properties.'
+    ]
+    listAttachmentPath = [
+        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'RunBasicTestHttpLog.json'),
+        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'RunBasicTestTerminalLog.json')
+    ]
+    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'EvaluateBasicTestOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Based on the attached test terminal and HTTP logs, determine if `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}) passes or fails. If the test fails, fix the test according to the logs and the rules: {' '.join(listRule)} {outputFormatPrompt(_step = step)}",
+                'attachments': listAttachmentPath
+            }
+        ],
+        'model': 'claude-opus-4.7',
         'outputSavePath': outputSavePath,
-        'nextStep': 'GetPortalProperty'
+        'nextStep': {
+            'bPass': {
+                True: '',
+                False: 'ConfigureRunBasicTest'
+            }
+        }
     }
 
     step = 'Sleep'
@@ -517,7 +557,7 @@ def getCrudFlow():
 
     return dictStepConfig
 
-def generateFlow():
+def getFlow():
     dictStepConfig = None
 
     match dictConfig['flow']:
@@ -525,13 +565,12 @@ def generateFlow():
             dictStepConfig = getRegistration2PortalPropertyFlow()
         case 'schema':
             dictStepConfig = getSchemaFlow()
-        case 'crud':
-            dictStepConfig = getCrudFlow()
-
+        case 'crud2BasicTest':
+            dictStepConfig = getCrud2BasicTestFlow()
+        case 'basicTest':
+            dictStepConfig = getBasicTestFlow()
+    '''
     with open('flowConfig.yml', 'w') as f:
         yaml.dump(dictStepConfig, f)
-
-    return
-
-if __name__ == "__main__":
-    generateFlow()
+    '''
+    return dictStepConfig

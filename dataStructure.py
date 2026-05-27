@@ -10,6 +10,9 @@ class GenerateReplaceDirectiveOutput(pydantic.BaseModel):
 class GetPortalPropertyOutput(pydantic.BaseModel):
     listPortalProperty: dict[str, str] = pydantic.Field(description = 'Dictionary of resource properties according to portal screenshot, where key is the portal property and value is the corresponding specification property')
 
+class EvaluateBasicTestOutput(pydantic.BaseModel):
+    bPass: bool = pydantic.Field(description = 'Whether basic test passes')
+
 class HttpLog(pydantic.BaseModel):
     method: str
     url: str

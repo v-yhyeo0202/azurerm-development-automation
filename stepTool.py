@@ -8,7 +8,8 @@ import re
 import subprocess
 import yaml
 
-import generator
+import codeGenerator
+import flowGenerator
 import service
 
 with open('config.yml') as f:
@@ -112,6 +113,7 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
 
 def runCommand(dictInput):
     print(f"Running command:")
+
     dictOutput = {
         'commandOutput': ''
     }
@@ -142,7 +144,7 @@ def runCommand(dictInput):
 
     return dictOutput
 
-def generateCodeOrConfig(functionName, dictInput):
+def generateCode(functionName, dictInput):
     if os.path.exists(dictInput['path']):
         print(f"File {dictInput['path']} already exists, skipping code generation")
 
@@ -151,7 +153,7 @@ def generateCodeOrConfig(functionName, dictInput):
     print(f'Generating code or config with {functionName}')
 
     functionName = functionName[0].lower() + functionName[1:]
-    code = getattr(generator, functionName)()
+    code = getattr(codeGenerator, functionName)()
     directoryPath = os.path.dirname(dictInput['path'])
     os.makedirs(directoryPath, exist_ok = True)
 
@@ -164,6 +166,7 @@ listProcess = []
 
 def initializeService(functionName, dictInput):
     print(f'Initializing service with {functionName}')
+
     functionName = functionName[0].lower() + functionName[1:]
     process = getattr(service, functionName)(dictInput)
     listProcess.append(process)
@@ -178,6 +181,22 @@ def terminateService():
         process.wait()
 
     return
+
+def callFunction(packageName, functionName, dictInput):
+    print(f'Calling {functionName}')
+
+    functionName = functionName[0].lower() + functionName[1:]
+    getattr(packageName, functionName)(dictInput)
+
+    return
+
+def controlFlow(step, dictStepConfig):
+    print(f'Controlling flow with {step}')
+
+    functionName = step[0].lower() + step[1:]
+    nextStep = getattr(flowGenerator, functionName)(step, dictStepConfig)
+
+    return nextStep
 
 def getNextStep(dictCurrentStepConfig, dictOutput = None):
     if 'nextStep' not in dictCurrentStepConfig:
