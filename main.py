@@ -1,5 +1,7 @@
+import datetime
 import json
 import langchain_core
+import os
 import yaml
 
 import dataStructure
@@ -39,17 +41,22 @@ try:
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
             case 'generateCode':
-                stepTool.generateCode(step, dictCurrentStepConfig['input'])
+                stepTool.generateCode(dictCurrentStepConfig['input'], step)
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
             case 'service':
-                stepTool.initializeService(step, dictCurrentStepConfig['input'])
+                stepTool.initializeService(dictCurrentStepConfig['input'], step)
                 step = stepTool.getNextStep(dictCurrentStepConfig)
                 print('\n')
             case 'controlFlow':
-                step = stepTool.controlFlow(step, dictCurrentStepConfig)
+                step = stepTool.controlFlow(dictStepConfig, step)
 
         if 'outputSavePath' in dictCurrentStepConfig:
+            if 'bKeepSaveFile' in dictCurrentStepConfig and dictCurrentStepConfig['bKeepSaveFile'] and os.path.exists(dictCurrentStepConfig['outputSavePath']):
+                renamedFile = f"{dictCurrentStepConfig['outputSavePath'].split('.')[0]}_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.{dictCurrentStepConfig['outputSavePath'].split('.')[1]}"
+                renamedPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], renamedFile)
+                os.rename(dictCurrentStepConfig['outputSavePath'], renamedPath)
+
             with open(dictCurrentStepConfig['outputSavePath'], 'w', encoding = 'utf-8') as f:
                 json.dump(dictOutput, f, indent = 4, ensure_ascii = False)
 finally:

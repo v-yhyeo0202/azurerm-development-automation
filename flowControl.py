@@ -1,13 +1,13 @@
 dictIndex = {}
 
-def generateIndex(step, dictStepConfig, endIndex):
-    if step in dictIndex:
-        dictIndex[step] += 1
+def generateIndex(dictStepConfig, indexKey, endIndex):
+    if indexKey in dictIndex:
+        dictIndex[indexKey] += 1
 
-        if dictIndex[step] == endIndex:
+        if dictIndex[indexKey] == endIndex:
 
-            return ''
+            return dictStepConfig['nextStep']
     else:
-        dictIndex[step] = 0
+        dictIndex[indexKey] = 0
 
-    return dictStepConfig['nextStep']
+    return dictStepConfig['loopStep']

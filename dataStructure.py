@@ -13,6 +13,15 @@ class GetPortalPropertyOutput(pydantic.BaseModel):
 class EvaluateBasicTestOutput(pydantic.BaseModel):
     bPass: bool = pydantic.Field(description = 'Whether basic test passes')
 
+class EvaluateCompleteTestOutput(pydantic.BaseModel):
+    bPass: bool = pydantic.Field(description = 'Whether complete test passes')
+
+class GetPropertyWithoutValidateFuncOutput(pydantic.BaseModel):
+    listPropertyWithoutValidateFunc: list[tuple[str, str]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without validation function and second tuple value is the corresponding type')
+
+class EvaluateValidateFuncTestOutput(pydantic.BaseModel):
+    bAddValidateFunc: bool = pydantic.Field(description = 'Whether `ValidateFunc` is added')
+
 class HttpLog(pydantic.BaseModel):
     method: str
     url: str

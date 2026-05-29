@@ -1,8 +1,10 @@
 import functools
+import json
 import os
 import yaml
 
 import flowControl
+import stepWrapper
 
 with open('config.yml') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
@@ -11,11 +13,17 @@ def formatMultilineCommand(inputString):
     outputString = inputString.replace('  ', '').strip('\n').replace('\n', '; ')
 
     return outputString
-
+'''
 outputFormatPrompt = functools.partial(
     'UNDER ANY CIRCUMSTANCES, GENERATE LAST OUTPUT IN JSON FORMAT ACCORDING TO [`{_step}Output` CLASS]({dataStructurePath})!'.format,
     dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
 )
+'''
+outputFormatPrompt = functools.partial(
+    'Generate output in JSON format according to [`{_step}Output` class]({dataStructurePath}).'.format,
+    dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
+)
+attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
 vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
 pandoraServiceName = dictConfig['pandoraServiceName'] if dictConfig['pandoraServiceName'] else dictConfig['serviceName'].replace(' ', '')
 resourceFile = f"{dictConfig['resource']}_resource.go"
@@ -23,6 +31,8 @@ resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['s
 testFile = f"{dictConfig['resource']}_resource_test.go"
 testPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], testFile)
 pascalCaseResource = ''.join([i.capitalize() for i in dictConfig['resource'].split('_')])
+validateFuncTestFile = f"{dictConfig['resource']}_resource_vf_test.go"
+validateFuncTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], validateFuncTestFile)
 
 def getRegistration2PortalPropertyFlow():
     dictStepConfig = {
@@ -69,12 +79,15 @@ def getRegistration2PortalPropertyFlow():
 
     step = 'PreGenerateSdk'
     stepType = 'copilot'
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}Output.json')
+    outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Check if [local Go Azure SDK with exact version]({vendorSdkPath}) of {dictConfig['resource']} exists according to [specification]({dictConfig['specification']}). If not, check if the SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). If the SDK with exact version exists in the repository, check the SDK package path to be imported. {outputFormatPrompt(_step = step)}"
+                'prompt': f"Check if [local Go Azure SDK with exact version]({vendorSdkPath}) of {dictConfig['resource']} exists according to [specification]({dictConfig['specification']}). If not, check if the SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). If the SDK with exact version exists in the repository, check the SDK package path to be imported. Do not consider content in {dictConfig['path']['sdk']} and {dictConfig['path']['locallyGeneratedSdk']}."
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -140,13 +153,7 @@ def getRegistration2PortalPropertyFlow():
         'nextStep': 'InitializePandoraDataApi'
     }
 
-    step = 'InitializePandoraDataApi'
-    stepType = 'service'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {},
-        'nextStep': 'GenerateSdkWithPandora'
-    }
+    stepWrapper.addService(dictStepConfig, 'InitializePandoraDataApi', 'GenerateSdkWithPandora')
 
     step = 'GenerateSdkWithPandora'
     stepType = 'command'
@@ -187,12 +194,15 @@ def getRegistration2PortalPropertyFlow():
     step = 'GenerateReplaceDirective'
     stepType = 'copilot'
     goModPath = os.path.join(dictConfig['path']['azurerm'], 'go.mod')
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}Output.json')
+    outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). {outputFormatPrompt(_step = step)}"
+                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']})."
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -228,8 +238,8 @@ def getRegistration2PortalPropertyFlow():
     step = 'EditResourceClient'
     stepType = 'copilot'
     listAttachmentPath = [
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'PreGenerateSdkOutput.json'),
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'GenerateReplaceDirectiveOutput.json')
+        os.path.join(attachmentPath, 'PreGenerateSdkOutput.json'),
+        os.path.join(attachmentPath, 'GenerateReplaceDirectiveOutput.json')
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -252,15 +262,18 @@ def getRegistration2PortalPropertyFlow():
         '4. Exclude `Subscription`.'
     ]
     listAttachmentPath = [
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'portal*.png')
+        os.path.join(attachmentPath, 'portal*.png')
     ]
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}Output.json')
+    outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Get list of {dictConfig['resource']} properties which are present in attached portal screenshots according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)} {outputFormatPrompt(_step = step)}",
+                'prompt': f"Get list of {dictConfig['resource']} properties which are present in attached portal screenshots according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}",
                 'attachments': listAttachmentPath
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
             }
         ],
         'model': 'claude-opus-4.7',
@@ -273,7 +286,7 @@ def getRegistration2PortalPropertyFlow():
 def getSchemaFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateBehavior'
+        'firstStep': 'GenerateSchema'
     }
 
     step = 'GenerateSchema'
@@ -289,7 +302,7 @@ def getSchemaFlow():
         '7. Model structure name should contain `Model` suffix, not `ResourceModel` suffix.'
     ]
     listAttachmentPath = [
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'GetPortalPropertyOutput.json')
+        os.path.join(attachmentPath, 'GetPortalPropertyOutput.json')
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -311,9 +324,8 @@ def getSchemaFlow():
         f'2. Apply `ForceNew` behavior to properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
         f'3. Apply `ValidateFunc` behavior to ID properties using [Go Azure SDK validation methods]({vendorSdkPath}).',
         f'4. Apply `ValidateFunc` behavior to properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
-        f"5. Apply `ValidateFunc` behavior to `TypeString` properties which their regular expression patterns or date formats are listed in specification.",
-        '6. Do not apply `Sensitive` behaviors.',
-        '7. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
+        '5. Do not apply `Sensitive` behaviors.',
+        '6. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -330,13 +342,14 @@ def getSchemaFlow():
     stepType = 'copilot'
     listRule = [
         '1. `TypeList` or `TypeSet` parent property that contains only 1 child property.',
-        '2. `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.'
+        '2. `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.',
+        f"3. `TypeList` `Required` parent property that has `MaxItem` as `1`.",
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)} Carry out any necessary modifications after flattening."
+                'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -357,7 +370,7 @@ def getCrud2BasicTestFlow():
         '1. CRUD methods should be generated between `ResourceType` and `IDValidationFunc` methods.',
         '2. `Update` method should come directly after `Create` method.',
         '3. Timeout should be 30 mins for `Create`, `Update`, and `Delete` methods and 5 mins for `Read` method.',
-        '4. For `Optional` properties, check if properties are set before assigning to `param` structure in `Create` method.',
+        '4. For `Optional` properties without `Default` behavior, check if properties are set before assigning to `param` structure in `Create` method.',
         '5. For `Optional` `TypeInt` properties, use `metadata.ResourceDiff.GetRawConfig` method to check if properties are not null before assigning to `param` structure.',
         # '6. For `Optional` `TypeBool` properties with `Default`, assign the `Default` value to the properties in `Read` method if the properties are not returned by `client.Get` method',
         '6. Instead of initialize `param` structure in `Update` method, use the model obtained from `client.Get` method.',
@@ -368,11 +381,13 @@ def getCrud2BasicTestFlow():
         '11. Use `client` methods with polling whenever possible.',
         '12. `expand` method should only be created when assigning more than 1 child property to a Go SDK parent property.',
         '13. Do not expand Go SDK root level `Properties` structure.',
-        '14. `flatten` method should only be created to return a Terraform parent property in type of `interface` and more than 1 child property.'
+        '14. `flatten` method should only be created to return a Terraform parent property in type of `interface` and more than 1 child property.',
+        f"15. Use `pointer.ToEnum` to convert `string` to pointer for properties with `enum` field in [specification]({dictConfig['specification']}).",
+        f"16. Use `pointer.FromEnum` to convert pointer to `string` for properties with `enum` field in [specification]({dictConfig['specification']})."
     ]
     listAttachmentPath = [
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'PreGenerateSdkOutput.json'),
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'GenerateReplaceDirectiveOutput.json')
+        os.path.join(attachmentPath, 'PreGenerateSdkOutput.json'),
+        os.path.join(attachmentPath, 'GenerateReplaceDirectiveOutput.json')
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -382,7 +397,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-opus-4.7',
         'nextStep': 'GenerateResourceIdentity'
     }
 
@@ -419,11 +434,17 @@ def getCrud2BasicTestFlow():
 
     step = 'GenerateBasicTest'
     stepType = 'copilot'
+    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
+    listRule = [
+        f"Refer to [specification]({dictConfig['specification']}) to understand the properties.",
+        f"Refer to existing tests in [*_resource_test.go]({existingTestPath}) for prerequisite resources to create {dictConfig['resource']} if applicable.",
+        'Refer to web for any relevant information.'
+    ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties."
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties according to the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-opus-4.7',
@@ -432,9 +453,21 @@ def getCrud2BasicTestFlow():
 
     return dictStepConfig
 
-def addRunTest(dictStepConfig, step, testName, nextStep):
+def addInitializeHttpProxy(dictStepConfig, nextStep):
+    stepWrapper.addService(dictStepConfig, 'InitializeHttpProxyListener', 'InitializeHttpProxy')
+    stepWrapper.addService(dictStepConfig, 'InitializeHttpProxy', nextStep)
+
+    return
+
+def configureRunBasicTest(dictStepConfig):
+    step = 'ConfigureRunBasicTest'
+    nextStep = flowControl.generateIndex(dictStepConfig[step], step, 10)
+
+    return nextStep
+
+def addRunTest(dictStepConfig, step, nextStep, testName):
     stepType = 'command'
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], f'{step}TerminalLog.json')
+    outputSavePath = os.path.join(attachmentPath, f'{step}TerminalLog.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
@@ -451,86 +484,44 @@ def addRunTest(dictStepConfig, step, testName, nextStep):
             }
         },
         'outputSavePath': outputSavePath,
+        'bKeepSaveFile': True,
         'nextStep': nextStep
     }
 
     return
 
-def configureRunBasicTest(step, dictStepConfig):
-    step = flowControl.generateIndex(step, dictStepConfig, 10)
-
-    return step
-
 def getBasicTestFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateBasicTest'
+        'firstStep': 'InitializeHttpProxyListener'
     }
 
-    step = 'GenerateBasicTest'
-    stepType = 'copilot'
-    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
-    listRule = [
-        f"Refer to [specification]({dictConfig['specification']}) to understand the properties.",
-        f"Refer to existing tests in [*_resource_test.go]({existingTestPath}) for prerequisite resources to create {dictConfig['resource']} if applicable."
-    ]
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties according to the rules: {' '.join(listRule)}"
-            }
-        ],
-        'model': 'claude-opus-4.7',
-        'nextStep': 'InitializeHttpProxyListener'
-    }
-
-    step = 'InitializeHttpProxyListener'
-    stepType = 'service'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {},
-        'nextStep': 'InitializeHttpProxy'
-    }
-
-    step = 'InitializeHttpProxy'
-    stepType = 'service'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {},
-        'nextStep': 'ConfigureRunBasicTest'
-    }
-
-    step = 'ConfigureRunBasicTest'
-    stepType = 'controlFlow'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {
-            'packageName': 'flowGenerator'
-        },
-        'nextStep': 'RunBasicTest'
-    }
-
-    addRunTest(dictStepConfig, 'RunBasicTest', f'TestAcc{pascalCaseResource}_basic', 'EvaluateBasicTest')
+    addInitializeHttpProxy(dictStepConfig, 'ConfigureRunBasicTest')
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunBasicTest', 'RunBasicTest', '')
+    addRunTest(dictStepConfig, 'RunBasicTest', 'EvaluateBasicTest', f'TestAcc{pascalCaseResource}_basic')
 
     step = 'EvaluateBasicTest'
     stepType = 'copilot'
     listRule = [
-        f"1. Check [{resourceFile}]({resourcePath}) and [specification]({dictConfig['specification']}) to find the solution.",
-        f'2. Add only one of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_basic` according to [specification]({dictConfig["specification"]}) if necessary, and do not do so if it is not necessary.',
-        f'3. If parent property is applied according to rule 1, only add the required child properties under the parent property according to [specification]({dictConfig["specification"]}). If there is no required child property, add any one of the child properties.'
+        f"1. Check [{resourceFile}]({resourcePath}), [specification]({dictConfig['specification']}), and any relevant information from web to find the solution.",
+        f"2. Add only 1 of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_basic` according to [specification]({dictConfig['specification']}) if necessary, and do not do so if it is not necessary.",
+        f"3. If parent property is added according to rule 2, only add the required child properties under the parent property according to [specification]({dictConfig['specification']}). If there is no required child property, add any 1 of the child properties.",
+        '4. If a property or both parent and child properties are added according to rule 2, apply `Required` behavior to the properties.',
     ]
     listAttachmentPath = [
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'RunBasicTestHttpLog.json'),
-        os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'RunBasicTestTerminalLog.json')
+        os.path.join(attachmentPath, 'RunBasicTestHttpLog.json'),
+        os.path.join(attachmentPath, 'RunBasicTestTerminalLog.json')
     ]
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'EvaluateBasicTestOutput.json')
+    outputSavePath = os.path.join(attachmentPath, 'EvaluateBasicTestOutput.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Based on the attached test terminal and HTTP logs, determine if `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}) passes or fails. If the test fails, fix the test according to the logs and the rules: {' '.join(listRule)} {outputFormatPrompt(_step = step)}",
+                'prompt': f"Based on the attached test terminal and HTTP logs, determine if `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}) passes or fails. If the test fails, fix the test according to the logs and the rules: {' '.join(listRule)}",
                 'attachments': listAttachmentPath
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
             }
         ],
         'model': 'claude-opus-4.7',
@@ -557,6 +548,240 @@ def getBasicTestFlow():
 
     return dictStepConfig
 
+def configureRunCompleteTest(dictStepConfig):
+    step = 'ConfigureRunCompleteTest'
+    nextStep = flowControl.generateIndex(dictStepConfig[step], step, 10, '')
+
+    return nextStep
+
+def getCompleteTestFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'InitializeHttpProxyListener'
+    }
+
+    step = 'GenerateCompleteTest'
+    stepType = 'copilot'
+    listRule = [
+        f'1. Use `TestAcc{pascalCaseResource}_basic` as reference.',
+        f'2. `TestAcc{pascalCaseResource}_complete` should contain all properties from schema in [{resourceFile}]({resourcePath}).'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}) accorrding to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-opus-4.7',
+        'nextStep': 'InitializeHttpProxyListener'
+    }
+
+    addInitializeHttpProxy(dictStepConfig, 'ConfigureRunCompleteTest')
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunCompleteTest', 'RunCompleteTest', '')
+    addRunTest(dictStepConfig, 'RunCompleteTest', 'EvaluateCompleteTest', f'TestAcc{pascalCaseResource}_complete')
+
+    step = 'EvaluateCompleteTest'
+
+    return dictStepConfig
+
+def configureGenerateValidateFuncTest(dictStepConfig):
+    step = 'ConfigureGenerateValidateFuncTest'
+
+    with open(os.path.join(attachmentPath, 'GetPropertyWithoutValidateFuncOutput.json')) as f:
+        listPropertyType = json.load(f)['listPropertyWithoutValidateFunc']
+
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listPropertyType))
+
+    if nextStep == 'GenerateValidateFuncTest':
+        propertyName = listPropertyType[flowControl.dictIndex[step]][0]
+        typeName = listPropertyType[flowControl.dictIndex[step]][1]
+
+        match typeName:
+            case 'TypeFloat' | 'TypeInt':
+                listTestName =  ['negative', 'zero', 'digit2', 'digit3', 'digit4', 'uint16', 'int32', 'uint32']
+                listTestValue = [-1, 0, 64, 128, 1024, 65535, 2147483647, 4294967295] if typeName == 'TypeInt' else [-0.1, 0, 64.1, 128.1, 1024.1, 65535.1, 2147483647.1, 4294967295.1]
+            case 'TypeString':
+                listTestName = ['emojiSpecialChar']
+                listTestValue = ['🙂\\/"[]:|<>+=;,?*@&']
+
+        listRule = [
+            f'1. Refer to [`TestAcc{pascalCaseResource}_basic`]({testPath}) to generate the test.',
+            '2. Do not use `ExpectError` and `PlanOnly` in the test.'
+        ]
+        listInput = []
+        for testName, testValue in zip(listTestName, listTestValue):
+            listInput.append({
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) which contains `{propertyName}` property with `{testValue}` value according to the rules: {' '.join(listRule)}",
+            })
+
+        next2Step = 'ConfigureRunValidateFuncTest'
+        dictStepConfig['step'][nextStep] = {
+            'type': 'copilot',
+            'input': listInput,
+            'model': 'claude-opus-4.7',
+            'nextStep': next2Step
+        }
+
+        dictTestName = {
+            'listValidateFuncTest': [f'TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}' for testName in listTestName]
+        }
+
+        with open(os.path.join(attachmentPath, 'validateFuncTest.json'), 'w') as f:
+            json.dump(dictTestName, f, indent = 4)
+
+        if next2Step in flowControl.dictIndex:
+            del flowControl.dictIndex[next2Step]
+
+    return nextStep
+
+def configureRunValidateFuncTest(dictStepConfig):
+    step = 'ConfigureRunValidateFuncTest'
+
+    with open(os.path.join(attachmentPath, 'validateFuncTest.json'), 'r') as f:
+        listTestName = json.load(f)['listValidateFuncTest']
+
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listTestName))
+
+    if nextStep == 'RunValidateFuncTest':
+        testName = listTestName[flowControl.dictIndex[step]]
+        addRunTest(dictStepConfig, 'RunValidateFuncTest', 'EvaluateValidateFuncTest', testName)
+
+        step = 'EvaluateValidateFuncTest'
+        stepType = 'copilot'
+        validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
+        listRule = [
+            '1. Do not add `ValidateFunc` if the test fails due to other reasons.',
+            f'2. Apply function from [validation package]({validationPath}) if possible.'
+        ]
+        listAttachmentPath = [
+            os.path.join(attachmentPath, 'RunValidateFuncTestHttpLog.json'),
+            os.path.join(attachmentPath, 'RunValidateFuncTestTerminalLog.json')
+        ]
+        dictStepConfig['step'][step] = {
+            'type': stepType,
+            'input': [
+                {
+                    'prompt': f"Check if `{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) passes according to the test terminal and HTTP logs. If the test fails due to the invalid value of tested property and the valid value format is returned in error message, add `ValidateFunc` to the tested property in schema of [{resourceFile}]({resourcePath}) according to the valid value format in the error message. Follow the rules: {' '.join(listRule)}",
+                    'attachments': listAttachmentPath
+                },
+                {
+                    'prompt': outputFormatPrompt(_step = step)
+                }
+            ],
+            'model': 'claude-opus-4.7',
+            'nextStep': {
+                'bAddValidateFunc': {
+                    True: 'ConfigureGenerateValidateFuncTest',
+                    False: 'ConfigureRunValidateFuncTest'
+                }
+            }
+        }
+
+    return nextStep
+
+def getValidateFuncFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GetPropertyWithoutValidateFunc'
+    }
+
+    step = 'GetPropertyWithoutValidateFunc'
+    stepType = 'copilot'
+    outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"List `TypeFloat`, `TypeInt`, and `TypeString` properties in schema of [{resourceFile}]({resourcePath}) that do not have `ValidateFunc`."
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'outputSavePath': outputSavePath,
+        'nextStep': 'InitializeHttpProxyListener'
+    }
+
+    addInitializeHttpProxy(dictStepConfig, 'ConfigureGenerateValidateFuncTest')
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateValidateFuncTest', 'GenerateValidateFuncTest', '')
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunValidateFuncTest', 'RunValidateFuncTest', 'ConfigureGenerateValidateFuncTest')
+
+    return dictStepConfig
+
+def getFlattenPropertyFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'FlattenPropertyManually'
+    }
+
+    step = 'FlattenPropertyManually'
+    stepType = 'copilot'
+    parentProperty = 'package_application'
+    listRule = [
+        '1. Flattening is done for only 1 level.',
+        '2. If the flattened child property name is same as any existing property name, append the child property name to that of parent.',
+        f'3. Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) accordingly after flattening.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Flatten all child properties under `{parentProperty}` parent property in schema of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
+def getProperty2RequiredFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'Property2RequiredManually'
+    }
+
+    step = 'Property2RequiredManually'
+    stepType = 'copilot'
+    listProperty = [
+        ''
+    ]
+    listProperty = [f'`{property}`' for property in listProperty]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Change {', '.join(listProperty)} properties behavior to `Required` in [{resourceFile}]({resourcePath}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
+            }
+        ],
+    }
+
+    return dictStepConfig
+
+def getGeneratePropertyFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GeneratePropertyManually'
+    }
+
+    step = 'GeneratePropertyManually'
+    stepType = 'copilot'
+    listProperty = [
+        ''
+    ]
+    listProperty = [f'`{property}`' for property in listProperty]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate {', '.join(listProperty)} to [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
+            }
+        ],
+    }
+
+    return dictStepConfig
+
 def getFlow():
     dictStepConfig = None
 
@@ -569,8 +794,15 @@ def getFlow():
             dictStepConfig = getCrud2BasicTestFlow()
         case 'basicTest':
             dictStepConfig = getBasicTestFlow()
-    '''
-    with open('flowConfig.yml', 'w') as f:
-        yaml.dump(dictStepConfig, f)
-    '''
+        case 'completeTest':
+            dictStepConfig = getCompleteTestFlow()
+        case 'validateFunc':
+            dictStepConfig = getValidateFuncFlow()
+        case 'flattenProperty':
+            dictStepConfig = getFlattenPropertyFlow()
+        case 'property2Required':
+            dictStepConfig = getProperty2RequiredFlow()
+        case 'generateProperty':
+            dictStepConfig = getGeneratePropertyFlow()
+
     return dictStepConfig

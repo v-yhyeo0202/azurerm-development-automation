@@ -39,27 +39,29 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
                 on_permission_request = copilot.session.PermissionHandler.approve_all,
                 streaming = True
             ) as session:
+                doneEvent = asyncio.Event()
+
+                def onEvent(event):
+                    match event.data:
+                        case copilot.generated.session_events.AssistantMessageDeltaData() | copilot.generated.session_events.AssistantReasoningDeltaData() as data:
+                            delta = data.delta_content or ''
+                            print(delta, end = '', flush = True)
+
+                            if i == len(listInput) - 1:
+                                self.generation += delta
+                        case copilot.generated.session_events.SessionIdleData():
+                            doneEvent.set()
+
+                session.on(onEvent)
+                
                 for i, dictInput in enumerate(listInput):
                     print('Running Copilot with input:')
                     print(f"Input: {dictInput['prompt']}")
                     print()
 
-                    doneEvent = asyncio.Event()
-
-                    def onEvent(event):
-                        match event.data:
-                            case copilot.generated.session_events.AssistantMessageDeltaData() | copilot.generated.session_events.AssistantReasoningDeltaData() as data:
-                                delta = data.delta_content or ''
-                                print(delta, end = '', flush = True)
-
-                                if i == len(listInput) - 1:
-                                    self.generation += delta
-                            case copilot.generated.session_events.SessionIdleData():
-                                doneEvent.set()
-
-                    session.on(onEvent)
                     await session.send(dictInput['prompt'], attachments = dictInput['attachments'] if 'attachments' in dictInput else None)
                     await doneEvent.wait()
+                    doneEvent.clear()
 
         if self.bSchema:
             listGeneration = self.generation.split('\n\n')
@@ -144,7 +146,7 @@ def runCommand(dictInput):
 
     return dictOutput
 
-def generateCode(functionName, dictInput):
+def generateCode(dictInput, functionName):
     if os.path.exists(dictInput['path']):
         print(f"File {dictInput['path']} already exists, skipping code generation")
 
@@ -164,7 +166,7 @@ def generateCode(functionName, dictInput):
 
 listProcess = []
 
-def initializeService(functionName, dictInput):
+def initializeService(dictInput, functionName):
     print(f'Initializing service with {functionName}')
 
     functionName = functionName[0].lower() + functionName[1:]
@@ -190,11 +192,11 @@ def callFunction(packageName, functionName, dictInput):
 
     return
 
-def controlFlow(step, dictStepConfig):
+def controlFlow(dictStepConfig, step):
     print(f'Controlling flow with {step}')
 
     functionName = step[0].lower() + step[1:]
-    nextStep = getattr(flowGenerator, functionName)(step, dictStepConfig)
+    nextStep = getattr(flowGenerator, functionName)(dictStepConfig)
 
     return nextStep
 
