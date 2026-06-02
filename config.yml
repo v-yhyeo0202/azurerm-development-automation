@@ -2,16 +2,20 @@ path:
   main: '/home/v-yyeo/azurerm-development-automation'
   code: 'azurerm-development-automation'
   attachment: 'attachment'
-  azurerm: '/home/v-yyeo/terraform-provider-azurerm-2/terraform-provider-azurerm'
+  azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
   services: 'internal/services/desktopvirtualization'
   pandora: '/home/v-yyeo/pandora'
   sdk: '/home/v-yyeo/go-azure-sdk'
   locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
 
 defaultModel: 'claude-haiku-4.5'
-resource: 'virtual_desktop_msix_package'
-# resource: 'virtual_desktop_app_attach_package'
-# resource: 'virtual_desktop_msix_image'
+# virtual_desktop_msix_package
+# virtual_desktop_app_attach_package
+# virtual_desktop_msix_image
+# virtual_desktop_session_host
+# virtual_desktop_application
+resource: 'virtual_desktop_app_attach_package'
+clientResource: ''
 specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json'
 serviceName: 'Desktop Virtualization'
 pandoraServiceName: ''
@@ -31,8 +35,14 @@ port:
 # completeTest
 # Fix `TestAcc{pascalCaseResource}_complete`
 # validateFunc
+# Check if `ValidateFunc` is applied correctly
+# maxItems
+# Check if `MaxItems` is applied correctly
+# forceNew
+# Check if `ForceNew` is applied correctly
 
 # flattenProperty
 # property2Required
 # generateProperty
-flow: 'validateFunc'
+# generateAttribute
+flow: 'crud2BasicTest'

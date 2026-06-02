@@ -17,7 +17,7 @@ try:
     dictOutput = None
 
     while step:
-        print('debug6')
+        print(f'Step: {step}')
         dictCurrentStepConfig = dictStepConfig['step'][step]
 
         match dictCurrentStepConfig['type']:
@@ -35,21 +35,19 @@ try:
                 ).model_dump()
 
                 step = stepTool.getNextStep(dictCurrentStepConfig, None if 'content' in dictOutput and not dictOutput['content'] else dictOutput)
-                print('\n')
             case 'command':
                 dictOutput = stepTool.runCommand(dictCurrentStepConfig['input'])
                 step = stepTool.getNextStep(dictCurrentStepConfig)
-                print('\n')
             case 'generateCode':
                 stepTool.generateCode(dictCurrentStepConfig['input'], step)
                 step = stepTool.getNextStep(dictCurrentStepConfig)
-                print('\n')
             case 'service':
                 stepTool.initializeService(dictCurrentStepConfig['input'], step)
                 step = stepTool.getNextStep(dictCurrentStepConfig)
-                print('\n')
             case 'controlFlow':
                 step = stepTool.controlFlow(dictStepConfig, step)
+
+        print('\n')
 
         if 'outputSavePath' in dictCurrentStepConfig:
             if 'bKeepSaveFile' in dictCurrentStepConfig and dictCurrentStepConfig['bKeepSaveFile'] and os.path.exists(dictCurrentStepConfig['outputSavePath']):

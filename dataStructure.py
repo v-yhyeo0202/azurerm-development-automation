@@ -20,7 +20,16 @@ class GetPropertyWithoutValidateFuncOutput(pydantic.BaseModel):
     listPropertyWithoutValidateFunc: list[tuple[str, str]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without validation function and second tuple value is the corresponding type')
 
 class EvaluateValidateFuncTestOutput(pydantic.BaseModel):
-    bAddValidateFunc: bool = pydantic.Field(description = 'Whether `ValidateFunc` is added')
+    bAddValidateFunc: bool = pydantic.Field(description = 'Whether `ValidateFunc` behavior is added')
+
+class GetPropertyWithoutForceNewOutput(pydantic.BaseModel):
+    listPropertyWithoutForceNew: list[tuple[str, str, bool, int]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without `ForceNew`, second tuple value is the corresponding type, third tuple value is the boolean which indicates whether the property is `Required`, and fourth tuple value is the value of `MaxItems` behavior (`0` if `MaxItems` is not specified)')
+
+class EvaluateForceNewTestOutput(pydantic.BaseModel):
+    bAddForceNew: bool = pydantic.Field(description = 'Whether `ForceNew` behavior is added')
+
+class GetPropertyWithoutMaxItemsOutput(pydantic.BaseModel):
+    listPropertyWithoutMaxItems: list[str] = pydantic.Field(description = 'List of property names in schema without `MaxItems`')
 
 class HttpLog(pydantic.BaseModel):
     method: str

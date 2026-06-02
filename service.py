@@ -19,7 +19,7 @@ def initializePandoraDataApi(dictInput):
 
 def initializeHttpProxy(dictInput):
     process = subprocess.Popen(
-        f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy']}",
+        f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy']} -q",
         env = dictEnvironment,
         executable = '/bin/bash',
         shell = True
