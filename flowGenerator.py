@@ -372,45 +372,7 @@ def getCrud2BasicTestFlow():
         'step': {},
         'firstStep': 'GenerateCreate'
     }
-    '''
-    step = 'GenerateCrud'
-    stepType = 'copilot'
-    listRule = [
-        '1. CRUD methods should be generated between `ResourceType` and `IDValidationFunc` methods.',
-        '2. `Update` method should come directly after `Create` method.',
-        '3. Timeout should be 30 mins for `Create`, `Update`, and `Delete` methods and 5 mins for `Read` method.',
-        '4. For `Optional` properties without `Default` behavior, check if properties are set before assigning to `param` structure in `Create` method.',
-        '5. For `Optional` `TypeInt` properties, use `metadata.ResourceDiff.GetRawConfig` method to check if properties are not null before assigning to `param` structure.',
-        # '6. For `Optional` `TypeBool` properties with `Default`, assign the `Default` value to the properties in `Read` method if the properties are not returned by `client.Get` method',
-        '6. Instead of initialize `param` structure in `Update` method, use the model obtained from `client.Get` method.',
-        '7. Do not include properties with `ForceNew` behavior in `Update` method.',
-        '8. Only assign properties to `param` structure if `metadata.HasChange` method returns true for the properties in `Update` method.',
-        '9. Use `client.CreateOrUpdate` method instead of `client.Update` in `Update` method.',
-        "10. Apply `sdk.ResourceWithUpdate` interface if `Update` method is implemented.",
-        '11. For `Optional` properties, only assign properties to `state` structure if the properties are returned by `client.Get` method in `Read` method.',
-        '12. Use `client` methods with polling whenever possible.',
-        '13. `expand` method should only be created when assigning more than 1 child property to a Go SDK parent property.',
-        '14. Do not expand Go SDK root level `Properties` structure.',
-        '15. `flatten` method should only be created to return a Terraform parent property in type of `interface` and more than 1 child property.',
-        f"16. Use `pointer.ToEnum` to convert `string` to pointer for properties with `enum` field in [specification]({dictConfig['specification']}).",
-        f"17. Use `pointer.FromEnum` to convert pointer to `string` for properties with `enum` field in [specification]({dictConfig['specification']})."
-    ]
-    listAttachmentPath = [
-        os.path.join(attachmentPath, 'PreGenerateSdkOutput.json'),
-        os.path.join(attachmentPath, 'GenerateReplaceDirectiveOutput.json')
-    ]
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate CRUD methods in [{resourceFile}]({resourcePath}) according to `sdkPackage` in attached files and the rules: {' '.join(listRule)}",
-                'attachments': listAttachmentPath
-            }
-        ],
-        'model': 'claude-opus-4.8',
-        'nextStep': 'GenerateResourceIdentity'
-    }
-    '''
+
     step = 'GenerateCreate'
     stepType = 'copilot'
     listRule = [
