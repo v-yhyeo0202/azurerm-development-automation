@@ -15,24 +15,30 @@ def initializePandoraDataApi(dictInput):
         env = dictEnvironment
     )
 
-    return process
+    return [process]
 
 def initializeHttpProxy(dictInput):
-    process = subprocess.Popen(
-        f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy']} -q",
-        env = dictEnvironment,
-        executable = '/bin/bash',
-        shell = True
-    )
+    listProcess = []
 
-    return process
+    for i in range(dictConfig['nHttpProxy']):
+        listProcess.append(subprocess.Popen(
+            f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy'][i]['sender']} -q",
+            env = dictEnvironment,
+            executable = '/bin/bash',
+            shell = True
+        ))
+
+    return listProcess
 
 def initializeHttpProxyListener(dictInput):
-    process = subprocess.Popen(
-        f'source {venvPath}; python httpProxyListener.py',
-        env = dictEnvironment,
-        executable = '/bin/bash',
-        shell = True
-    )
+    listProcess = []
 
-    return process
+    for i in range(dictConfig['nHttpProxy']):
+        listProcess.append(subprocess.Popen(
+            f'source {venvPath}; python httpProxyListener.py -p {dictConfig["port"]["httpProxy"][i]["listener"]}',
+            env = dictEnvironment,
+            executable = '/bin/bash',
+            shell = True
+        ))
+
+    return listProcess

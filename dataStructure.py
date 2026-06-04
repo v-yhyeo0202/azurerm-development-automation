@@ -23,7 +23,7 @@ class EvaluateValidateFuncTestOutput(pydantic.BaseModel):
     bAddValidateFunc: bool = pydantic.Field(description = 'Whether `ValidateFunc` behavior is added')
 
 class GetPropertyWithoutForceNewOutput(pydantic.BaseModel):
-    listPropertyWithoutForceNew: list[tuple[str, str, bool, int]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without `ForceNew`, second tuple value is the corresponding type, third tuple value is the boolean which indicates whether the property is `Required`, and fourth tuple value is the value of `MaxItems` behavior (`0` if `MaxItems` is not specified)')
+    listPropertyWithoutForceNew: list[tuple[str, str, bool, int, bool]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without `ForceNew`, second tuple value is the corresponding type, third tuple value is the boolean which indicates whether the property is `Required`, fourth tuple value is the value of `MaxItems` behavior (`0` if `MaxItems` is not specified), and fifth tuple value is the boolean which indicates whether the property is a `TypeList`, `TypeMap`, or `TypeSet` property containing `Elem` behavior with `pluginsdk.Resource`')
 
 class EvaluateForceNewTestOutput(pydantic.BaseModel):
     bAddForceNew: bool = pydantic.Field(description = 'Whether `ForceNew` behavior is added')

@@ -170,8 +170,7 @@ def initializeService(dictInput, functionName):
     print(f'Initializing service with {functionName}')
 
     functionName = functionName[0].lower() + functionName[1:]
-    process = getattr(service, functionName)(dictInput)
-    listProcess.append(process)
+    listProcess.extend(getattr(service, functionName)(dictInput))
 
     return
 

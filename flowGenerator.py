@@ -35,8 +35,14 @@ forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path'
 maxItemsTestFile = f"{dictConfig['resource']}_resource_mi_test.go"
 maxItemsTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], maxItemsTestFile)
 
+listCheckPropertyRule = [
+    '1. For properties with schema returned by methods, check the methods too. This applies recursively.'
+]
+checkPropertyRule = f"Additional rules: {' '.join(listCheckPropertyRule)}"
+
 listTestRule = [
-    f'1. Always use `Standard_F1als_v7` size when virtual machine is used.'
+    '1. Always use `Standard_F1als_v7` size when virtual machine is used.',
+    '2. Do not run the test.'
 ]
 testRule = f"Additional rules: {' '.join(listTestRule)}"
 
@@ -387,8 +393,7 @@ def getCrud2BasicTestFlow():
         '9. Do not expand Go SDK root level `Properties` structure.',
         '10. Do not have to check if `Required` `TypeList` or `TypeSet` properties are empty in `expand` methods.',
         '11. Use `pointer.To` to convert properties to pointers.',
-        f"12. Use `pointer.ToEnum` to convert `string` properties to pointers for properties with `enum` field in [specification]({dictConfig['specification']}).",
-        '13. Do not use `SkipImportCheckOnCreateAndAllowOverwritingExistingResources` method.'
+        f"12. Use `pointer.ToEnum` to convert `string` properties to pointers for properties with `enum` field in [specification]({dictConfig['specification']})."
     ]
     listAttachmentPath = [
         os.path.join(attachmentPath, 'PreGenerateSdkOutput.json'),
@@ -406,6 +411,7 @@ def getCrud2BasicTestFlow():
         'nextStep': 'GenerateUpdate'
     }
 
+    # Seems to not generate codes for all relevant properties
     step = 'GenerateUpdate'
     stepType = 'copilot'
     listRule = [
@@ -630,7 +636,7 @@ def configureRunCompleteTest(dictStepConfig):
 def getCompleteTestFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'InitializeHttpProxyListener'
+        'firstStep': 'GenerateCompleteTest'
     }
 
     step = 'GenerateCompleteTest'
@@ -644,7 +650,7 @@ def getCompleteTestFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}) accorrding to the rules: {' '.join(listRule)} {testRule}"
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}) if have not done so according to the rules: {' '.join(listRule)} {testRule}"
             }
         ],
         'model': 'claude-opus-4.8',
@@ -716,7 +722,7 @@ def configureGenerateValidateFuncTest(dictStepConfig):
         listInput = []
         for testName, testValue in zip(listTestName, listTestValue):
             listInput.append({
-                'prompt': f"Generate `TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) which contains `{propertyName}` property with `{testValue}` value according to the rules: {' '.join(listRule)} {testRule}",
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) which contains `{propertyName}` property with `{testValue}` value if have not done so according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath}).",
             })
 
         next2Step = 'ConfigureRunValidateFuncTest'
@@ -797,7 +803,7 @@ def getValidateFuncFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"List `TypeFloat`, `TypeInt`, and `TypeString` properties in `Arguments` method of [{resourceFile}]({resourcePath}) that do not have `ValidateFunc`."
+                'prompt': f"List `TypeFloat`, `TypeInt`, and `TypeString` properties in `Arguments` method of [{resourceFile}]({resourcePath}) that do not have `ValidateFunc`. {checkPropertyRule}"
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -844,7 +850,7 @@ def configureGenerateMaxItemsTest(dictStepConfig):
             'type': 'copilot',
             'input': [
                 {
-                    'prompt': f"Generate `{testName}` in [{maxItemsTestFile}]({maxItemsTestPath}) which contains `{propertyName}` property with 64 elements according to the rules: {' '.join(listRule)} {testRule}"
+                    'prompt': f"Generate `{testName}` in [{maxItemsTestFile}]({maxItemsTestPath}) which contains `{propertyName}` property with 64 elements if have not done so according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
             'model': 'claude-opus-4.8',
@@ -892,7 +898,7 @@ def getMaxItemsFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"List `TypeList` and `TypeSet` properties that do not have `MaxItems` behavior in `Arguments` method of [{resourceFile}]({resourcePath})."
+                'prompt': f"List `TypeList` and `TypeSet` properties that do not have `MaxItems` behavior in `Arguments` method of [{resourceFile}]({resourcePath}). {checkPropertyRule}"
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -920,15 +926,24 @@ def configureGenerateForceNewTest(dictStepConfig):
         propertyType = listPropertyBehavior[flowControl.dictIndex[step]][1]
         bRequired = listPropertyBehavior[flowControl.dictIndex[step]][2]
         maxItems = listPropertyBehavior[flowControl.dictIndex[step]][3]
+        bElemResource = listPropertyBehavior[flowControl.dictIndex[step]][4]
 
         testName = f'TestAcc{pascalCaseResource}_update_{propertyName}'
         listStep = None
 
-        if (propertyType == 'TypeList' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1):
+        if (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1) and bElemResource:
             listStep = [
                 f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to add second element to `{propertyName}`."
                 f"3. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`."
+            ]
+        elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1) and not bElemResource:
+            listStep = [
+                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"2. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to second value.",
+                f"3. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to first value.",
+                f"4. Update `{dictConfig['resource']}` to add second element to `{propertyName}`."
+                f"5. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`."
             ]
         elif propertyType == 'TypeList' and not bRequired and maxItems == 1:
             listStep = [
@@ -936,13 +951,23 @@ def configureGenerateForceNewTest(dictStepConfig):
                 f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
                 f"3. Update `{dictConfig['resource']}` to remove `{propertyName}`."
             ]
-        elif (propertyType == 'TypeList' or propertyType == 'TypeSet') and not bRequired and (maxItems == 0 or maxItems > 1):
+        elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and not bRequired and (maxItems == 0 or maxItems > 1) and bElemResource:
             listStep = [
                 f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
                 f"3. Update `{dictConfig['resource']}` to add second element to `{propertyName}`.",
                 f"4. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`.",
                 f"5. Update `{dictConfig['resource']}` to remove `{propertyName}`."
+            ]
+        elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and not bRequired and (maxItems == 0 or maxItems > 1) and not bElemResource:
+            listStep = [
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
+                f"3. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to second value.",
+                f"4. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to first value.",
+                f"5. Update `{dictConfig['resource']}` to add second element to `{propertyName}`.",
+                f"6. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`.",
+                f"7. Update `{dictConfig['resource']}` to remove `{propertyName}`."
             ]
         elif bRequired:
             listStep = [
@@ -963,7 +988,7 @@ def configureGenerateForceNewTest(dictStepConfig):
             'type': 'copilot',
             'input': [
                 {
-                    'prompt': f"Generate `{testName}` in [{forceNewTestFile}]({forceNewTestPath}) which updates only `{propertyName}` property with the steps: {' '.join(listStep)} {testRule}"
+                    'prompt': f"Generate `{testName}` in [{forceNewTestFile}]({forceNewTestPath}) which updates only `{propertyName}` property if not not done so with the steps: {' '.join(listStep)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
             'model': 'claude-opus-4.8',
@@ -1003,12 +1028,18 @@ def getForceNewFlow():
 
     step = 'GetPropertyWithoutForceNew'
     stepType = 'copilot'
+    listRule = [
+        '1. The properties `Type`, `Required`, `Optional`, and `MaxItems` behaviors should be listed if applicable.',
+        '2. For `TypeList`, `TypeMap`, and `TypeSet` properties, check if they have `Elem` behaviors with `pluginsdk.Resource` or `pluginsdk.Schema` methods.',
+        '3. Consider both parent and child properties.',
+        '4. Only include properties with name.'
+    ]
     outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"List properties that do not have `ForceNew` behavior in `Arguments` method of [{resourceFile}]({resourcePath}). Their `Type`, `Required`, `Optional`, and `MaxItems` behaviors should be listed if applicable. Consider both parent and child properties."
+                'prompt': f"List properties that do not have `ForceNew` behavior in `Arguments` method of [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)} {checkPropertyRule}"
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -1031,17 +1062,18 @@ def getFlattenPropertyFlow():
 
     step = 'FlattenPropertyManually'
     stepType = 'copilot'
-    parentProperty = 'package_application'
+    parentProperty = 'image'
     listRule = [
         '1. Flattening is done for only 1 level.',
         '2. If the flattened child property name is same as any existing property name, append the child property name to that of parent.',
-        f'3. Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) accordingly after flattening.'
+        f'3. Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) accordingly after flattening.',
+        '4. If multiple `HasChange` methods are used in a `if else` statement, use `HasChanges` instead.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Flatten all child properties under `{parentProperty}` parent property in schema of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
+                'prompt': f"Flatten all child properties under `{parentProperty}` parent property in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-4.6',
