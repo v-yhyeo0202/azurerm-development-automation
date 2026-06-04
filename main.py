@@ -44,6 +44,9 @@ try:
             case 'service':
                 stepTool.initializeService(dictCurrentStepConfig['input'], step)
                 step = stepTool.getNextStep(dictCurrentStepConfig)
+            case 'callFunction':
+                stepTool.callFunction(dictCurrentStepConfig['input'], step)
+                step = stepTool.getNextStep(dictCurrentStepConfig)
             case 'controlFlow':
                 step = stepTool.controlFlow(dictStepConfig, step)
 

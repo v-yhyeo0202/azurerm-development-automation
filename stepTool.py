@@ -1,6 +1,7 @@
 import asyncio
 import glob
 import copilot
+import importlib
 import langchain_core
 import langchain_core.language_models
 import os
@@ -183,11 +184,11 @@ def terminateService():
 
     return
 
-def callFunction(packageName, functionName, dictInput):
+def callFunction(dictInput, functionName):
     print(f'Calling {functionName}')
 
-    functionName = functionName[0].lower() + functionName[1:]
-    getattr(packageName, functionName)(dictInput)
+    package = importlib.import_module(dictInput['package'])
+    getattr(package, dictInput['function'])(dictInput)
 
     return
 

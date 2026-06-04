@@ -19,17 +19,11 @@ class EvaluateCompleteTestOutput(pydantic.BaseModel):
 class GetPropertyWithoutValidateFuncOutput(pydantic.BaseModel):
     listPropertyWithoutValidateFunc: list[tuple[str, str]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without validation function and second tuple value is the corresponding type')
 
-class EvaluateValidateFuncTestOutput(pydantic.BaseModel):
-    bAddValidateFunc: bool = pydantic.Field(description = 'Whether `ValidateFunc` behavior is added')
+class GetParentPropertyWithoutMaxItemsOutput(pydantic.BaseModel):
+    listParentPropertyWithoutMaxItems: list[str] = pydantic.Field(description = 'List of `TypeList` and `TypeSet` property names in schema without `MaxItems`')
 
 class GetPropertyWithoutForceNewOutput(pydantic.BaseModel):
-    listPropertyWithoutForceNew: list[tuple[str, str, bool, int, bool]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without `ForceNew`, second tuple value is the corresponding type, third tuple value is the boolean which indicates whether the property is `Required`, fourth tuple value is the value of `MaxItems` behavior (`0` if `MaxItems` is not specified), and fifth tuple value is the boolean which indicates whether the property is a `TypeList`, `TypeMap`, or `TypeSet` property containing `Elem` behavior with `pluginsdk.Resource`')
-
-class EvaluateForceNewTestOutput(pydantic.BaseModel):
-    bAddForceNew: bool = pydantic.Field(description = 'Whether `ForceNew` behavior is added')
-
-class GetPropertyWithoutMaxItemsOutput(pydantic.BaseModel):
-    listPropertyWithoutMaxItems: list[str] = pydantic.Field(description = 'List of property names in schema without `MaxItems`')
+    listPropertyWithoutForceNew: list[tuple[str, str, bool, bool, int, bool]] = pydantic.Field(description = 'List of tuple, where first tuple value is the property name in schema without `ForceNew`, second tuple value is the corresponding type, third tuple value is the boolean which indicates whether the property is `Required`, fourth tuple value is the boolean which indicates whether the property has `Default` behavior, fifth tuple value is the value of `MaxItems` behavior (`0` if `MaxItems` is not specified), and sixth tuple value is the boolean which indicates whether the property is a `TypeList`, `TypeMap`, or `TypeSet` property containing `Elem` behavior with `pluginsdk.Resource`')
 
 class HttpLog(pydantic.BaseModel):
     method: str

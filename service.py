@@ -22,7 +22,7 @@ def initializeHttpProxy(dictInput):
 
     for i in range(dictConfig['nHttpProxy']):
         listProcess.append(subprocess.Popen(
-            f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy'][i]['sender']} -q",
+            f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy'][i]['sender']} -q --set listenerPort={dictConfig['port']['httpProxy'][i]['listener']}",
             env = dictEnvironment,
             executable = '/bin/bash',
             shell = True
@@ -35,7 +35,7 @@ def initializeHttpProxyListener(dictInput):
 
     for i in range(dictConfig['nHttpProxy']):
         listProcess.append(subprocess.Popen(
-            f'source {venvPath}; python httpProxyListener.py -p {dictConfig["port"]["httpProxy"][i]["listener"]}',
+            f'source {venvPath}; python httpProxyListener.py {dictConfig["port"]["httpProxy"][i]["listener"]}',
             env = dictEnvironment,
             executable = '/bin/bash',
             shell = True

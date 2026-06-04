@@ -334,13 +334,15 @@ def getSchemaFlow():
     step = 'GenerateBehavior'
     stepType = 'copilot'
     updatePath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method*update.go')
+    validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
     listRule = [
         '1. Apply `Required` behavior to properties according to specification. Otherwise, apply `Optional` behavior.',
         f'2. Apply `ForceNew` behavior to properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
         f'3. Apply `ValidateFunc` behavior to ID properties using [Go Azure SDK validation methods]({vendorSdkPath}).',
-        f'4. Apply `ValidateFunc` behavior to properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
-        '5. Do not apply `Sensitive` behaviors.',
-        '6. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
+        f'4. Apply `ValidateFunc` behavior to `TypeString` properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
+        f'5. Add comment above `TypeString` properties suggesting suitable `ValidateFunc` method from [validation package]({validationPath}).',
+        '6. Do not apply `Sensitive` behaviors.',
+        '7. Apply `MaxItems: 1` to `TypeList` property that corresponds to specification parent properties which are not `array` type.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -349,7 +351,7 @@ def getSchemaFlow():
                 'prompt': f"Generate behaviors to properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-opus-4.8',
         'nextStep': 'FlattenProperty'
     }
 
@@ -564,14 +566,14 @@ def addRunTest(dictStepConfig, step, nextStep, testName):
             'command': [
                 ['make', 'fmt'],
                 ['make', 'testacc'],
-                ['curl', f"http://localhost:{dictConfig['port']['httpProxyListener']}/saveHttpLog?savePath={step}HttpLog.json"]
+                ['curl', f"http://localhost:{dictConfig['port']['httpProxy'][0]['listener']}/saveHttpLog?savePath={step}HttpLog.json"]
             ],
             'env': {
                 'TEST': f"./{dictConfig['path']['services']}",
                 'TESTARGS': f'-test.parallel 1 -test.run={testName}',
                 'TESTTIMEOUT': '1440m',
-                'http_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}",
-                'https_proxy': f"http://localhost:{dictConfig['port']['httpProxy']}"
+                'http_proxy': f"http://localhost:{dictConfig['port']['httpProxy'][0]['sender']}",
+                'https_proxy': f"http://localhost:{dictConfig['port']['httpProxy'][0]['sender']}"
             }
         },
         'outputSavePath': outputSavePath,
@@ -725,67 +727,11 @@ def configureGenerateValidateFuncTest(dictStepConfig):
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) which contains `{propertyName}` property with `{testValue}` value if have not done so according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath}).",
             })
 
-        next2Step = 'ConfigureRunValidateFuncTest'
         dictStepConfig['step'][nextStep] = {
             'type': 'copilot',
             'input': listInput,
             'model': 'claude-opus-4.8',
-            'nextStep': next2Step
-        }
-
-        dictTestName = {
-            'listValidateFuncTest': [f'TestAcc{pascalCaseResource}_vf_{propertyName}_{testName}' for testName in listTestName]
-        }
-
-        with open(os.path.join(attachmentPath, 'validateFuncTest.json'), 'w') as f:
-            json.dump(dictTestName, f, indent = 4)
-
-        if next2Step in flowControl.dictIndex:
-            del flowControl.dictIndex[next2Step]
-
-    return nextStep
-
-def configureRunValidateFuncTest(dictStepConfig):
-    step = 'ConfigureRunValidateFuncTest'
-
-    with open(os.path.join(attachmentPath, 'validateFuncTest.json'), 'r') as f:
-        listTestName = json.load(f)['listValidateFuncTest']
-
-    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listTestName))
-
-    if nextStep == 'RunValidateFuncTest':
-        testName = listTestName[flowControl.dictIndex[step]]
-        addRunTest(dictStepConfig, 'RunValidateFuncTest', 'EvaluateValidateFuncTest', testName)
-
-        step = 'EvaluateValidateFuncTest'
-        stepType = 'copilot'
-        validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
-        listRule = [
-            '1. Do not add `ValidateFunc` if the test fails due to other reasons.',
-            f'2. Apply function from [validation package]({validationPath}) if applicable.'
-        ]
-        listAttachmentPath = [
-            os.path.join(attachmentPath, 'RunValidateFuncTestHttpLog.json'),
-            os.path.join(attachmentPath, 'RunValidateFuncTestTerminalLog.json')
-        ]
-        dictStepConfig['step'][step] = {
-            'type': stepType,
-            'input': [
-                {
-                    'prompt': f"Check if `{testName}` in [{validateFuncTestFile}]({validateFuncTestPath}) passes according to the test terminal and HTTP logs. If the test fails due to the invalid value of tested property and the valid value format is returned in error message, add `ValidateFunc` to the tested property in `Arguments` method of [{resourceFile}]({resourcePath}) according to the valid value format in the error message. Follow the rules: {' '.join(listRule)}",
-                    'attachments': listAttachmentPath
-                },
-                {
-                    'prompt': outputFormatPrompt(_step = step)
-                }
-            ],
-            'model': 'claude-opus-4.8',
-            'nextStep': {
-                'bAddValidateFunc': {
-                    True: 'ConfigureGenerateValidateFuncTest',
-                    False: 'ConfigureRunValidateFuncTest'
-                }
-            }
+            'nextStep': 'ConfigureGenerateValidateFuncTest'
         }
 
     return nextStep
@@ -813,29 +759,15 @@ def getValidateFuncFlow():
         'nextStep': 'InitializeHttpProxyListener'
     }
 
-    addInitializeHttpProxy(dictStepConfig, 'ConfigureGenerateValidateFuncTest')
-    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateValidateFuncTest', 'GenerateValidateFuncTest', 'GenerateDefaultValidateFunc')
-    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunValidateFuncTest', 'RunValidateFuncTest', 'ConfigureGenerateValidateFuncTest')
-
-    step = 'GenerateDefaultValidateFunc'
-    stepType = 'copilot'
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate `ValidateFunc` behaviors with `validation.StringIsNotEmpty` for the `TypeString` properties without `ValidateFunc` in [{resourceFile}]({resourcePath})."
-            }
-        ],
-        'nextStep': ''
-    }
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateValidateFuncTest', 'GenerateValidateFuncTest', '')
 
     return dictStepConfig
 
 def configureGenerateMaxItemsTest(dictStepConfig):
     step = 'ConfigureGenerateMaxItemsTest'
 
-    with open(os.path.join(attachmentPath, 'GetPropertyWithoutMaxItemsOutput.json')) as f:
-        listProperty = json.load(f)['listPropertyWithoutMaxItems']
+    with open(os.path.join(attachmentPath, 'GetParentPropertyWithoutMaxItemsOutput.json')) as f:
+        listProperty = json.load(f)['listParentPropertyWithoutMaxItems']
 
     nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listProperty))
 
@@ -854,36 +786,10 @@ def configureGenerateMaxItemsTest(dictStepConfig):
                 }
             ],
             'model': 'claude-opus-4.8',
-            'nextStep': 'RunMaxItemsTest'
-        }
-
-        addRunTest(dictStepConfig, 'RunMaxItemsTest', 'EvaluateMaxItemsTest', testName)
-
-        step = 'EvaluateMaxItemsTest'
-        stepType = 'copilot'
-        listRule = [
-            '1. Do not add `MaxItems` if the test fails due to other reasons.'
-        ]
-        listAttachmentPath = [
-            os.path.join(attachmentPath, 'RunMaxItemsTestHttpLog.json'),
-            os.path.join(attachmentPath, 'RunMaxItemsTestTerminalLog.json')
-        ]
-        dictStepConfig['step'][step] = {
-            'type': stepType,
-            'input': [
-                {
-                    'prompt': f"Check if `{testName}` in [{maxItemsTestFile}]({maxItemsTestPath}) passes according to the test terminal and HTTP logs. If the test fails due to exceeded number of tested property elements and the maximum number is returned in error message, add `MaxItems` behavior to the tested property in `Arguments` method of [{resourceFile}]({resourcePath}) according to the maximum number in the error message. Follow the rules: {' '.join(listRule)}",
-                    'attachments': listAttachmentPath
-                },
-                {
-                    'prompt': outputFormatPrompt(_step = step)
-                }
-            ],
-            'model': 'claude-opus-4.8',
             'nextStep': 'ConfigureGenerateMaxItemsTest'
         }
 
-    return
+    return nextStep
 
 def getMaxItemsFlow():
     dictStepConfig = {
@@ -905,10 +811,9 @@ def getMaxItemsFlow():
             }
         ],
         'outputSavePath': outputSavePath,
-        'nextStep': 'InitializeHttpProxyListener'
+        'nextStep': 'ConfigureGenerateMaxItemsTest'
     }
 
-    addInitializeHttpProxy(dictStepConfig, 'ConfigureGenerateMaxItemsTest')
     stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateMaxItemsTest', 'GenerateMaxItemsTest', '')
 
     return dictStepConfig
@@ -925,10 +830,11 @@ def configureGenerateForceNewTest(dictStepConfig):
         propertyName = listPropertyBehavior[flowControl.dictIndex[step]][0]
         propertyType = listPropertyBehavior[flowControl.dictIndex[step]][1]
         bRequired = listPropertyBehavior[flowControl.dictIndex[step]][2]
-        maxItems = listPropertyBehavior[flowControl.dictIndex[step]][3]
-        bElemResource = listPropertyBehavior[flowControl.dictIndex[step]][4]
+        bDefault = listPropertyBehavior[flowControl.dictIndex[step]][3]
+        maxItems = listPropertyBehavior[flowControl.dictIndex[step]][4]
+        bElemResource = listPropertyBehavior[flowControl.dictIndex[step]][5]
 
-        testName = f'TestAcc{pascalCaseResource}_update_{propertyName}'
+        testName = f'TestAcc{pascalCaseResource}_fn_{propertyName}'
         listStep = None
 
         if (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1) and bElemResource:
@@ -975,6 +881,12 @@ def configureGenerateForceNewTest(dictStepConfig):
                 f"2. Update `{dictConfig['resource']}` to change `{propertyName}` to second value."
                 f"3. Update `{dictConfig['resource']}` to change `{propertyName}` to first value."
             ]
+        elif bDefault:
+            listStep = [
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"2. Update `{dictConfig['resource']}` to add `{propertyName}` with value different from `Default` value stated in [{resourceFile}]({resourcePath}).",
+                f"3. Update `{dictConfig['resource']}` to remove `{propertyName}`."
+            ]
         else:
             listStep = [
                 f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
@@ -992,29 +904,6 @@ def configureGenerateForceNewTest(dictStepConfig):
                 }
             ],
             'model': 'claude-opus-4.8',
-            'nextStep': 'RunForceNewTest'
-        }
-
-        addRunTest(dictStepConfig, 'RunForceNewTest', 'EvaluateForceNewTest', testName)
-
-        step = 'EvaluateForceNewTest'
-        stepType = 'copilot'
-        listAttachmentPath = [
-            os.path.join(attachmentPath, 'RunForceNewTestHttpLog.json'),
-            os.path.join(attachmentPath, 'RunForceNewTestTerminalLog.json')
-        ]
-        dictStepConfig['step'][step] = {
-            'type': stepType,
-            'input': [
-                {
-                    'prompt': f"Check if `{testName}` in [{forceNewTestFile}]({forceNewTestPath}) passes according to the test terminal and HTTP logs. If the test fails due to failure to update the `{propertyName}` property, add `ForceNew` behavior to the tested property in `Arguments` method of [{resourceFile}]({resourcePath})",
-                    'attachments': listAttachmentPath
-                },
-                {
-                    'prompt': outputFormatPrompt(_step = step)
-                }
-            ],
-            'model': 'claude-opus-4.8',
             'nextStep': 'ConfigureGenerateForceNewTest'
         }
 
@@ -1023,13 +912,13 @@ def configureGenerateForceNewTest(dictStepConfig):
 def getForceNewFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GetPropertyWithoutForceNew'
+        'firstStep': 'InitializeHttpProxyListener'
     }
 
     step = 'GetPropertyWithoutForceNew'
     stepType = 'copilot'
     listRule = [
-        '1. The properties `Type`, `Required`, `Optional`, and `MaxItems` behaviors should be listed if applicable.',
+        '1. The properties `Type`, `Required`, `Optional`, `Default`, and `MaxItems` behaviors should be listed if applicable.',
         '2. For `TypeList`, `TypeMap`, and `TypeSet` properties, check if they have `Elem` behaviors with `pluginsdk.Resource` or `pluginsdk.Schema` methods.',
         '3. Consider both parent and child properties.',
         '4. Only include properties with name.'
@@ -1045,12 +934,37 @@ def getForceNewFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
+        'model': 'claude-sonnet-4.6',
         'outputSavePath': outputSavePath,
-        'nextStep': 'InitializeHttpProxyListener'
+        'nextStep': 'ConfigureGenerateForceNewTest'
     }
 
-    addInitializeHttpProxy(dictStepConfig, 'ConfigureGenerateForceNewTest')
     stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateForceNewTest', 'GenerateForceNewTest', '')
+
+    return dictStepConfig
+
+def getRunParallelTestFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'InitializeHttpProxyListener'
+    }
+
+    addInitializeHttpProxy(dictStepConfig, 'RunParallelTest')
+
+    step = 'RunParallelTest'
+    stepType = 'callFunction'
+    testPath = os.path.join(servicePath, f"{dictConfig['resource']}{dictConfig['path']['parallelTest']}")
+    testRegex = f"TestAcc{pascalCaseResource}{dictConfig['testRegex']}"
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'package': 'parallelTest',
+            'function': 'runTest',
+            'testPath': testPath,
+            'testRegex': testRegex
+        },
+        'nextStep': ''
+    }
 
     return dictStepConfig
 
@@ -1167,6 +1081,31 @@ def getGenerateAttributeFlow():
 
     return dictStepConfig
 
+def getCustomizeDiffFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateCustomizeDiffManually'
+    }
+
+    step = 'GenerateCustomizeDiffManually'
+    stepType = 'copilot'
+    listRule = [
+        '1. The `CustomizeDiff` method should be placed directly after `IDValidationFunc`.',
+        '2. Timeout should be 5 mins.',
+        '3. Apply `sdk.ResourceWithCustomizeDiff` interface.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate empty `CustomizeDiff` method in [{resourceFile}]({resourcePath}) if have not done so according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
 def getFlow():
     dictStepConfig = None
 
@@ -1187,6 +1126,8 @@ def getFlow():
             dictStepConfig = getMaxItemsFlow()
         case 'forceNew':
             dictStepConfig = getForceNewFlow()
+        case 'runParallelTest':
+            dictStepConfig = getRunParallelTestFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':
@@ -1195,5 +1136,21 @@ def getFlow():
             dictStepConfig = getGeneratePropertyFlow()
         case 'generateAttribute':
             dictStepConfig = getGenerateAttributeFlow()
+        case 'customizeDiff':
+            dictStepConfig = getCustomizeDiffFlow()
 
     return dictStepConfig
+
+'''
+step = 'Sleep'
+stepType = 'command'
+dictStepConfig['step'][step] = {
+    'type': stepType,
+    'input': {
+        'command': [
+            ['sleep', '600']
+        ]
+    },
+    'nextStep': ''
+}
+'''

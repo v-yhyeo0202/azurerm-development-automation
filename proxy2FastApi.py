@@ -1,5 +1,5 @@
 import asyncio
-from mitmproxy import http
+from mitmproxy import ctx, http
 import requests
 import yaml
 
@@ -12,6 +12,16 @@ class HttpExtractor:
     def __init__(self):
         self.listHttpLog = dataStructure.ListHttpLog(listHttpLog =[])
         self.lock = asyncio.Lock()
+
+        return
+    
+    def load(self, loader):
+        loader.add_option(
+            name = 'listenerPort',
+            typespec = int,
+            default = dictConfig['port']['httpProxy'][0]['listener'],
+            help = 'HTTP proxy listener port'
+        )
 
         return
     
@@ -32,7 +42,7 @@ class HttpExtractor:
             for i in range(len(self.listHttpLog.listHttpLog)):
                 if self.listHttpLog.listHttpLog[i].url == flow.request.url and self.listHttpLog.listHttpLog[i].responseBody == '':
                     self.listHttpLog.listHttpLog[i].responseBody = flow.response.content.decode('utf-8')
-                    requests.post(f'http://localhost:{dictConfig["port"]["httpProxyListener"]}/logHttp', json = self.listHttpLog.listHttpLog[i].model_dump())
+                    requests.post(f'http://localhost:{ctx.options.listenerPort}/logHttp', json = self.listHttpLog.listHttpLog[i].model_dump())
 
                     del self.listHttpLog.listHttpLog[i]
 

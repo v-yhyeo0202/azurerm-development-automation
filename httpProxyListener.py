@@ -2,6 +2,7 @@ import datetime
 import fastapi
 import json
 import os
+import sys
 import threading
 import uvicorn
 import yaml
@@ -42,4 +43,4 @@ async def saveHttpLog(savePath: str):
 
     return
 
-uvicorn.run(app, host = 'localhost', port = dictConfig['port']['httpProxyListener'])
+uvicorn.run(app, host = 'localhost', port = int(sys.argv[1]))
