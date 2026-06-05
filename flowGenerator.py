@@ -30,10 +30,10 @@ testPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['servi
 pascalCaseResource = ''.join([i.capitalize() for i in dictConfig['resource'].split('_')])
 validateFuncTestFile = f"{dictConfig['resource']}_resource_vf_test.go"
 validateFuncTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], validateFuncTestFile)
-forceNewTestFile = f"{dictConfig['resource']}_resource_fn_test.go"
-forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], forceNewTestFile)
 maxItemsTestFile = f"{dictConfig['resource']}_resource_mi_test.go"
 maxItemsTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], maxItemsTestFile)
+forceNewTestFile = f"{dictConfig['resource']}_resource_fn_test.go"
+forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], forceNewTestFile)
 
 listCheckPropertyRule = [
     '1. For properties with schema returned by methods, check the methods too. This applies recursively.'
@@ -46,10 +46,52 @@ listTestRule = [
 ]
 testRule = f"Additional rules: {' '.join(listTestRule)}"
 
-def getRegistration2PortalPropertyFlow():
+def getAiAssistedDevelopment2PortalPropertyFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateEmptyRegistration'
+        'firstStep': 'RemoveAiAssistedDevelopment'
+    }
+
+    step = 'RemoveAiAssistedDevelopment'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'cwd': dictConfig['path']['aiAssistedDevelopment'],
+            'command': [
+                ['./install-copilot-setup.sh', '-repo-directory', dictConfig['path']['azurerm'], '-clean']
+            ]
+        },
+        'nextStep': 'UpdateAiAssistedDevelopment'
+    }
+
+    step = 'UpdateAiAssistedDevelopment'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'cwd': dictConfig['path']['home'],
+            'command': [
+                ['rm', '-rf', dictConfig['path']['aiAssistedDevelopment']],
+                ['curl', '-L', '-o', '/tmp/terraform-azurerm-ai-installer.tar.gz', 'https://github.com/WodansSon/terraform-azurerm-ai-assisted-development/releases/latest/download/terraform-azurerm-ai-installer.tar.gz'],
+                ['mkdir', '-p', dictConfig['path']['aiAssistedDevelopment']],
+                ['tar', '-xzf', '/tmp/terraform-azurerm-ai-installer.tar.gz', '-C', dictConfig['path']['aiAssistedDevelopment'], '--strip-components=1']
+            ]
+        },
+        'nextStep': 'RunAiAssistedDevelopment'
+    }
+
+    step = 'RunAiAssistedDevelopment'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'cwd': dictConfig['path']['aiAssistedDevelopment'],
+            'command': [
+                ['./install-copilot-setup.sh', '-repo-directory', dictConfig['path']['azurerm']]
+            ]
+        },
+        'nextStep': 'GenerateEmptyRegistration'
     }
 
     step = 'GenerateEmptyRegistration'
@@ -714,8 +756,8 @@ def configureGenerateValidateFuncTest(dictStepConfig):
                 listTestName =  ['negative', 'zero', 'digit2', 'digit3', 'digit4', 'uint16', 'int32', 'uint32']
                 listTestValue = [-1, 0, 64, 128, 1024, 65535, 2147483647, 4294967295] if propertyType == 'TypeInt' else [-0.1, 0, 64.1, 128.1, 1024.1, 65535.1, 2147483647.1, 4294967295.1]
             case 'TypeString':
-                listTestName = ['emojiSpecialChar']
-                listTestValue = ['🙂\\/"[]:|<>+=;,?*@&']
+                listTestName = ['emojiSpecialChar', 'maxLength']
+                listTestValue = ['🙂\\/"[]:|<>+=;,?*@&', 'a' * 256]
 
         listRule = [
             f'1. Refer to [`TestAcc{pascalCaseResource}_complete`]({testPath}) to generate the test.',
@@ -756,7 +798,7 @@ def getValidateFuncFlow():
             }
         ],
         'outputSavePath': outputSavePath,
-        'nextStep': 'InitializeHttpProxyListener'
+        'nextStep': 'ConfigureGenerateValidateFuncTest'
     }
 
     stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGenerateValidateFuncTest', 'GenerateValidateFuncTest', '')
@@ -912,7 +954,7 @@ def configureGenerateForceNewTest(dictStepConfig):
 def getForceNewFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'InitializeHttpProxyListener'
+        'firstStep': 'GetPropertyWithoutForceNew'
     }
 
     step = 'GetPropertyWithoutForceNew'
@@ -953,7 +995,7 @@ def getRunParallelTestFlow():
 
     step = 'RunParallelTest'
     stepType = 'callFunction'
-    testPath = os.path.join(servicePath, f"{dictConfig['resource']}{dictConfig['path']['parallelTest']}")
+    testPath = os.path.join(servicePath, f"{dictConfig['resource']}{dictConfig['testFileSuffix']}.go")
     testRegex = f"TestAcc{pascalCaseResource}{dictConfig['testRegex']}"
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -968,6 +1010,146 @@ def getRunParallelTestFlow():
 
     return dictStepConfig
 
+def getPropertyName2ListResourceFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateListResourceTest'
+    }
+
+    step = 'ChangePropertyName'
+    stepType = 'copilot'
+    changedPropertyName = ', '.join([f'`{k}` to `{v}`' for k, v in dictConfig['propertyNameMap'].items()])
+    listRule = [
+        f'1. Change property names in `{pascalCaseResource}Model` structure accordingly.',
+        '2. Change variable and function argument names which are assigned the properties mentioned in rule 1 accordingly.',
+        '3. Change property names in error messages accordingly.',
+        '4. Change property names in tests accordingly.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Change property names from {changedPropertyName} in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}). Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-opus-4.8',
+        'nextStep': 'RearrangeSchemaProperty'
+    }
+
+    step = 'RearrangeSchemaProperty'
+    stepType = 'copilot'
+    listRule = [
+        '1. First 3 properties should be `name`, `resource_group_name`, and `location` in sequence if applicable.',
+        '2. Last property should be `tags` if applicable.',
+        '3. `Required` properties come before `Optional`.',
+        '4. Within `Required`, `Optional`, and `Computed` properties, arrange the properties alphabetically.',
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Rearrange properties in `Arguments` and `Attributes` methods in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'RearrangeStructureProperty'
+    }
+
+    step = 'RearrangeStructureProperty'
+    stepType = 'copilot'
+    listRule = [
+        '1. Properties correspond to that in `Arguments` method should comes first before that in `Attributes` method.',
+        '2. Within properties correspond to `Arguments` and `Attributes` methods, arrange the properties according to the sequence in `Arguments` and `Attributes` methods respectively.',
+        '3. Arrange the property assignment codes in `Create`, `Update`, `CustomizeDiff`, `expand*`, and `flatten*` methods according to the sequence specified in rule 1 and 2.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Rearrange properties of `{pascalCaseResource}Model` structure in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'RearrangeTestProperty'
+    }
+
+    step = 'RearrangeTestProperty'
+    stepType = 'copilot'
+    listRule = [
+        '1. `count` comes before first property if applicable.',
+        '2. First 3 properties should be `name`, `resource_group_name`, and `location` in sequence if applicable.',
+        '3. Last property should be `tags` if applicable.',
+        '4. Non-block properties come before block properties.',
+        '5. Within non-block and block properties, `Required` properties come before `Optional`.',
+        '6. Within `Required` and `Optional` properties, arrange the properties alphabetically.',
+        '7. `depends_on` comes after last property if applicable.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Rearrange properties of all resources in [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateListResource'
+    }
+
+    step = 'GenerateListResource'
+    stepType = 'copilot'
+    listPath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method_list*.go')
+    listResourceFile = f"{dictConfig['resource']}_resource_list.go"
+    listResourcePath = os.path.join(servicePath, listResourceFile)
+    listRule0 = [
+        '1. Generate `ResourceFunc`, `Metadata`, and `List` methods in sequence.',
+        f"2. If there are `ListBy*` methods which accept arguments other than `commonids.Subscription` and `commonids.ResourceGroupId`, generate `{pascalCaseResource}ListModel` structure and `ListResourceConfigSchema`. Do not consider `context.Context` and `ListBy*OperationOptions` arguments.",
+        "3. Apply `ctx.Deadline` and `context.WithDeadline` methods only when `context.Context` structure has to be passed into `flatten` method.",
+        '4. Use `rmd` as name of variable to store result returned from `sdk.NewResourceMetadata` method.',
+        f'5. Use `{pascalCaseResource}Result` as name of variable to store result returned from `range results`.',
+        f'6. Add `{pascalCaseResource}ListResource` to {registrationPath}.'
+    ]
+
+    listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
+    listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
+    listRule1 = [
+        f'1. `TestAcc{pascalCaseResource}_list_basic` test should consist of 3 `resource.TestStep` with `Config` `basicList`, `basicQuery`, and `basicQueryByResourceGroupName`.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Check if there are [`ListBy*` methods]({listPath}) for {dictConfig['resource']}. If there is, generate [{listResourceFile}]({listResourcePath}) if have not done so according to the `ListBy*` methods and the rules: {' '.join(listRule0)} {testRule}"
+            },
+            {
+                'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule1)} {testRule}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateListResourceTest'
+    }
+
+    step = 'GenerateListResourceTest'
+    stepType = 'copilot'
+    listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
+    listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
+    listRule = [
+        f'1. `TestAcc{pascalCaseResource}_list_basic` test should consist of 3 `resource.TestStep` with `Config` `basicList`, `basicQuery`, and `basicQueryByResourceGroupName`.',
+        f'2. Refer to [`basic` method]({testPath}) to generate `basicList` method.',
+        '3. In `basicQueryByResourceGroupName` method, use `azurerm_resource_group.test.name` as input for `resource_group_name` property.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) to test list resource if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule1)} {testRule}"
+            }
+        ],
+        'model': 'claude-opus-4.8',
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
 def getFlattenPropertyFlow():
     dictStepConfig = {
         'step': {},
@@ -976,7 +1158,6 @@ def getFlattenPropertyFlow():
 
     step = 'FlattenPropertyManually'
     stepType = 'copilot'
-    parentProperty = 'image'
     listRule = [
         '1. Flattening is done for only 1 level.',
         '2. If the flattened child property name is same as any existing property name, append the child property name to that of parent.',
@@ -987,7 +1168,7 @@ def getFlattenPropertyFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Flatten all child properties under `{parentProperty}` parent property in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
+                'prompt': f"Flatten all child properties under `{dictConfig['flattenParentProperty']}` parent property in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -1004,15 +1185,12 @@ def getProperty2RequiredFlow():
 
     step = 'Property2RequiredManually'
     stepType = 'copilot'
-    listProperty = [
-        ''
-    ]
-    listProperty = [f'`{property}`' for property in listProperty]
+    requiredProperty = ', '.join([f'`{property}`' for property in dictConfig['requiredProperty']])
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Change {', '.join(listProperty)} properties behavior to `Required` in [{resourceFile}]({resourcePath}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
+                'prompt': f"Change {requiredProperty} properties behavior to `Required` in [{resourceFile}]({resourcePath}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
             }
         ],
         'nextStep': ''
@@ -1020,7 +1198,7 @@ def getProperty2RequiredFlow():
 
     return dictStepConfig
 
-def getGeneratePropertyFlow():
+def getPropertyFlow():
     dictStepConfig = {
         'step': {},
         'firstStep': 'GeneratePropertyManually'
@@ -1028,15 +1206,12 @@ def getGeneratePropertyFlow():
 
     step = 'GeneratePropertyManually'
     stepType = 'copilot'
-    listProperty = [
-        'applicationType'
-    ]
-    listProperty = [f'`{i}`' for i in listProperty]
+    generatedProperty = ', '.join([f'`{property}`' for property in dictConfig['generatedProperty']])
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate {', '.join(listProperty)} properties to `Argument` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
+                'prompt': f"Generate {generatedProperty} properties to `Argument` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -1045,7 +1220,7 @@ def getGeneratePropertyFlow():
 
     return dictStepConfig
 
-def getGenerateAttributeFlow():
+def getAttributeFlow():
     dictStepConfig = {
         'step': {},
         'firstStep': 'GenerateAttributeManually'
@@ -1053,26 +1228,12 @@ def getGenerateAttributeFlow():
 
     step = 'GenerateAttributeManually'
     stepType = 'copilot'
-    listProperty = [
-        'LastUpdated',
-        'PackageFamilyName',
-        'PackageName',
-        'PackageRelativePath',
-        'Version',
-        'AppId',
-        'AppUserModelID',
-        'Description',
-        'FriendlyName',
-        'IconImageName',
-        'RawIcon',
-        'RawPng'
-    ]
-    listProperty = [f'`{i}`' for i in listProperty]
+    generatedAttribute = ', '.join([f'`{attribute}`' for attribute in dictConfig['generatedAttribute']])
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate {', '.join(listProperty)} properties to `Attributes` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly."
+                'prompt': f"Generate {generatedAttribute} properties to `Attributes` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly."
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -1110,8 +1271,8 @@ def getFlow():
     dictStepConfig = None
 
     match dictConfig['flow']:
-        case 'registration2PortalProperty':
-            dictStepConfig = getRegistration2PortalPropertyFlow()
+        case 'aiAssistedDevelopment2PortalProperty':
+            dictStepConfig = getAiAssistedDevelopment2PortalPropertyFlow()
         case 'schema':
             dictStepConfig = getSchemaFlow()
         case 'crud2BasicTest':
@@ -1128,14 +1289,16 @@ def getFlow():
             dictStepConfig = getForceNewFlow()
         case 'runParallelTest':
             dictStepConfig = getRunParallelTestFlow()
+        case 'propertyName2ListResource':
+            dictStepConfig = getPropertyName2ListResourceFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':
             dictStepConfig = getProperty2RequiredFlow()
-        case 'generateProperty':
-            dictStepConfig = getGeneratePropertyFlow()
-        case 'generateAttribute':
-            dictStepConfig = getGenerateAttributeFlow()
+        case 'property':
+            dictStepConfig = getPropertyFlow()
+        case 'attribute':
+            dictStepConfig = getAttributeFlow()
         case 'customizeDiff':
             dictStepConfig = getCustomizeDiffFlow()
 
