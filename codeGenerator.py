@@ -10,6 +10,7 @@ header = '''
 // SPDX-License-Identifier: MPL-2.0
 '''.strip()
 service = dictConfig['path']['services'].split('/')[-1]
+attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
 
 def generateEmptyRegistration():
     emptyRegistration = f'''
@@ -93,15 +94,14 @@ func NewClient(o *common.ClientOptions) (*Client, error) {{
 
 def generateSdkImport():
 	sdkPackage = ''
-	sdkPackagePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
 
-	with open(os.path.join(sdkPackagePath, 'PreGenerateSdkOutput.json')) as f:
+	with open(os.path.join(attachmentPath, 'PreGenerateSdkOutput.json')) as f:
 		dictPreGenerateSdkOutput = json.load(f)
 
 	if dictPreGenerateSdkOutput['sdkPackage']:
 		sdkPackage = dictPreGenerateSdkOutput['sdkPackage']
 	else:
-		with open(os.path.join(sdkPackagePath, 'GenerateReplaceDirectiveOutput.json')) as f:
+		with open(os.path.join(attachmentPath, 'GenerateReplaceDirectiveOutput.json')) as f:
 			sdkPackage = json.load(f)['sdkPackage']
 
 	sdkImport = f'''
@@ -113,3 +113,43 @@ import (
 '''.strip()
 
 	return sdkImport
+
+def generatePrContent():
+	with open(os.path.join(attachmentPath, 'GetDocumentationLinkOutput.json')) as f:
+		documentationLink = json.load(f)['documentationLink']
+
+	with open(os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')) as f:
+		file2Review = '\n'.join(json.load(f)['file2Review'])
+
+	prContent = f'''
+# `azurerm_{dictConfig['resource']}` - add resource
+
+## Description
+
+`azurerm_{dictConfig['resource']}` resource and list resource are added in this PR.
+
+OpenAPI specification: {dictConfig['specification']}
+
+Documentation: {documentationLink}
+
+Files to be reviewed:
+```
+{file2Review}
+```
+
+## Testing
+
+The tests run are determined using [terraform-terracorder](https://github.com/WodansSon/terraform-terracorder).
+
+Version 4.0
+
+
+Version 5.0
+
+
+## Change Log
+
+- `azurerm_{dictConfig['resource']}` - add resource and list resource
+'''.strip()
+
+	return prContent

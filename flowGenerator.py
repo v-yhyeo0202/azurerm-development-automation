@@ -34,6 +34,11 @@ maxItemsTestFile = f"{dictConfig['resource']}_resource_mi_test.go"
 maxItemsTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], maxItemsTestFile)
 forceNewTestFile = f"{dictConfig['resource']}_resource_fn_test.go"
 forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], forceNewTestFile)
+listResourceFile = f"{dictConfig['resource']}_resource_list.go"
+listResourcePath = os.path.join(servicePath, listResourceFile)
+listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
+listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
+documentPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['document'])
 
 listCheckPropertyRule = [
     '1. For properties with schema returned by methods, check the methods too. This applies recursively.'
@@ -1098,9 +1103,7 @@ def getPropertyName2ListResourceFlow():
     step = 'GenerateListResource'
     stepType = 'copilot'
     listPath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method_list*.go')
-    listResourceFile = f"{dictConfig['resource']}_resource_list.go"
-    listResourcePath = os.path.join(servicePath, listResourceFile)
-    listRule0 = [
+    listRule = [
         '1. Generate `ResourceFunc`, `Metadata`, and `List` methods in sequence.',
         f"2. If there are `ListBy*` methods which accept arguments other than `commonids.Subscription` and `commonids.ResourceGroupId`, generate `{pascalCaseResource}ListModel` structure and `ListResourceConfigSchema`. Do not consider `context.Context` and `ListBy*OperationOptions` arguments.",
         "3. Apply `ctx.Deadline` and `context.WithDeadline` methods only when `context.Context` structure has to be passed into `flatten` method.",
@@ -1108,20 +1111,11 @@ def getPropertyName2ListResourceFlow():
         f'5. Use `{pascalCaseResource}Result` as name of variable to store result returned from `range results`.',
         f'6. Add `{pascalCaseResource}ListResource` to {registrationPath}.'
     ]
-
-    listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
-    listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
-    listRule1 = [
-        f'1. `TestAcc{pascalCaseResource}_list_basic` test should consist of 3 `resource.TestStep` with `Config` `basicList`, `basicQuery`, and `basicQueryByResourceGroupName`.'
-    ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Check if there are [`ListBy*` methods]({listPath}) for {dictConfig['resource']}. If there is, generate [{listResourceFile}]({listResourcePath}) if have not done so according to the `ListBy*` methods and the rules: {' '.join(listRule0)} {testRule}"
-            },
-            {
-                'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule1)} {testRule}"
+                'prompt': f"Check if there are [`ListBy*` methods]({listPath}) for {dictConfig['resource']}. If there is, generate [{listResourceFile}]({listResourcePath}) if have not done so according to the `ListBy*` methods and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
         'model': 'claude-sonnet-4.6',
@@ -1130,8 +1124,6 @@ def getPropertyName2ListResourceFlow():
 
     step = 'GenerateListResourceTest'
     stepType = 'copilot'
-    listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
-    listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
     listRule = [
         f'1. `TestAcc{pascalCaseResource}_list_basic` test should consist of 3 `resource.TestStep` with `Config` `basicList`, `basicQuery`, and `basicQueryByResourceGroupName`.',
         f'2. Refer to [`basic` method]({testPath}) to generate `basicList` method.',
@@ -1141,10 +1133,290 @@ def getPropertyName2ListResourceFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) to test list resource if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule1)} {testRule}"
+                'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) to test list resource if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
         'model': 'claude-opus-4.8',
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
+def getDocumentFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateListResourceDocument'
+    }
+
+    step = 'GenerateResourceDocument'
+    stepType = 'copilot'
+    resourceDocumentPath = os.path.join(documentPath, 'r', f"{dictConfig['resource']}.html.markdown")
+    listRule = [
+        f'1. Example usage configuration should be same as that returned by `basic` method in [{testFile}]({testPath}).',
+        '2. Use `example` as the resource names and `name` properties in example usage configuration.',
+        '3. For same resource in example usage configuration, use `example` appended with index for resource names and `name` properties.',
+        '4. Do not add information about `ValidateFunc` behavior.',
+        '5. Generate `Arguments` and `Attributes` descriptions according to corresponding property description in specification when applicable.',
+        f"6. In `Import` section, use command in the format `terraform import azurerm_{dictConfig['resource']}.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourceGroup1/providers/{{placeholder0}}/{{placeholder1}}/{{placeholder1}}1` with the placeholders replaced with correct value accordingly."
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate [document for `{dictConfig['resource']}` resource]({resourceDocumentPath}) according to [{resourceFile}]({resourcePath}), [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateListResourceDocument'
+    }
+
+    step = 'GenerateListResourceDocument'
+    stepType = 'copilot'
+    listResourceDocumentPath = os.path.join(documentPath, 'list-resources', f"{dictConfig['resource']}.html.markdown")
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate [document for `{dictConfig['resource']}` list resource]({listResourceDocumentPath}) according to [{listResourceFile}]({listResourcePath}) and [{listResourceTestFile}]({listResourceTestPath})."
+            }
+        ],
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
+def configureMakeFmt(dictStepConfig):
+    step = 'ConfigureMakeFmt'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
+
+    return nextStep
+
+def configureMakeTerrafmt(dictStepConfig):
+    step = 'ConfigureMakeTerrafmt'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
+
+    return nextStep
+
+def configureMakeDocumentFix(dictStepConfig):
+    step = 'ConfigureMakeDocumentFix'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
+
+    return nextStep
+
+def configureMakeGenerate(dictStepConfig):
+    step = 'ConfigureMakeGenerate'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
+
+    return nextStep
+
+def getFixCommandFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'UpdateAzurermLinter'
+    }
+
+    step = 'UpdateAzurermLinter'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['go', 'install', 'github.com/qixialu/azurerm-linter@latest']
+            ]
+        },
+        'nextStep': 'ConfigureMakeFmt'
+    }
+
+    listStep = [
+        'MakeFmt',
+        'MakeTerrafmt',
+        'MakeDocumentFix',
+        'MakeGenerate',
+        'AzurermLinter'
+    ]
+
+    listCommand = [
+        ['make', 'fmt'],
+        ['make', 'terrafmt'],
+        ['make', 'document-fix'],
+        ['make', 'generate'],
+        ['azurerm-linter']
+    ]
+
+    for i, (step, command) in enumerate(zip(listStep, listCommand)):
+        stepWrapper.addControlFlow(dictStepConfig, f'Configure{step}', step, '')
+
+        stepType = 'command'
+        saveOutputPath = os.path.join(attachmentPath, f'{step}Output.json')
+        dictStepConfig['step'][step] = {
+            'type': stepType,
+            'input': {
+                'command': [
+                    command
+                ]
+            },
+            'outputSavePath': saveOutputPath,
+            'nextStep': f'Evaluate{step}'
+        }
+
+        step = f'Evaluate{step}'
+        stepType = 'copilot'
+        listAttachmentPath = [
+            saveOutputPath
+        ]
+        dictStepConfig['step'][step] = {
+            'type': stepType,
+            'input': [
+                {
+                    'prompt': f"Check if there are changes needed based on attached file containing output of `{' '.join(command)}`. If there are, fix it.",
+                    'attachments': listAttachmentPath
+                },
+                {
+                    'prompt': outputFormatPrompt(_step = step)
+                }
+            ],
+            'model': 'claude-sonnet-4.6',
+            'nextStep': {
+                'bChange': {
+                    True: f'Configure{step}',
+                    False: f'Configure{listStep[i + 1]}' if i < len(listStep) - 1 else ''
+                }
+            }
+        }
+
+    return dictStepConfig
+
+def configureRunTerracorder(dictStepConfig):
+    step = 'ConfigureRunTerracorder'
+
+    with open(os.path.join(attachmentPath, 'GetChangedResourceOutput.json')) as f:
+        listResource = json.load(f)['listChangedResource']
+
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listResource))
+
+    if nextStep == 'RunTerracorder':
+        resource = listResource[flowControl.dictIndex[step]]
+        outputSavePath = os.path.join(attachmentPath, f'RunTerracorderOutput_{resource}.json')
+        dictStepConfig['step']['RunTerracorder'] = {
+            'type': 'command',
+            'input': {
+                'cwd': dictConfig['path']['terracorder'],
+                'command': [
+                    ['pwsh', './scripts/terracorder.ps1', '-ResourceName', resource, '-RepositoryDirectory', dictConfig['path']['azurerm']]
+                ]
+            },
+            'outputSavePath': outputSavePath,
+            'nextStep': 'ConfigureRunTerracorder'
+        }
+
+    return nextStep
+
+def getPrContent2TestRegexFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GetDocumentationLink'
+    }
+
+    step = 'GetDocumentationLink'
+    stepType = 'copilot'
+    listExample = [
+        '1. Specification: https://github.com/Azure/azure-rest-api-specs/blob/main/specification/loadtestservice/resource-manager/Microsoft.LoadTestService/playwright/stable/2025-09-01/playwright.json, documentation: https://learn.microsoft.com/en-us/rest/api/playwright/resourcemanager/playwright-workspaces?view=rest-playwright-resourcemanager-2025-09-01.'
+        '2. Speficification: https://github.com/Azure/azure-rest-api-specs/blob/main/specification/azurefleet/resource-manager/Microsoft.AzureFleet/stable/2024-11-01/azurefleet.json, documentation: https://learn.microsoft.com/en-us/azure/azure-compute-fleet/overview.',
+        '3. Specification: https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cosmos-db/resource-manager/Microsoft.DocumentDB/DocumentDB/stable/2025-10-15/fleet.json, documentation: https://learn.microsoft.com/en-us/rest/api/cosmos-db-resource-provider/fleet?view=rest-cosmos-db-resource-provider-2025-10-15.'
+    ]
+    outputSavePath = os.path.join(attachmentPath, 'GetDocumentationLinkOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Check link to documentation of [specification]({dictConfig['specification']}) for {dictConfig['resource']}. Several examples are provided as follow: {' '.join(listExample)}"
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'outputSavePath': outputSavePath,
+        'nextStep': 'GetFile2Review'
+    }
+
+    step = 'GetFile2Review'
+    stepType = 'copilot'
+    listExcludedFile = [
+        f"1. {os.path.join(dictConfig['path']['azurerm'], 'go.mod')}",
+        f"2. {os.path.join(dictConfig['path']['azurerm'], 'go.sum')}",
+        f"3. {os.path.join(dictConfig['path']['azurerm'], 'vendor', '*')}",
+        f"4. {os.path.join(dictConfig['path']['azurerm'], '.github', '*')}",
+        f"5. {os.path.join(servicePath, 'testdata', '*')}"
+    ]
+    outputSavePath = os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Check list of added and changed files in current Git branch. List the files relative path. Exclude the following files: {' '.join(listExcludedFile)}."
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'outputSavePath': outputSavePath,
+        'nextStep': 'GeneratePrContent'
+    }
+
+    step = 'GeneratePrContent'
+    stepType = 'generateCode'
+    prContentPath = os.path.join(attachmentPath, 'prContent.md')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'path': prContentPath
+        },
+        'nextStep': 'GetChangedResource'
+    }
+
+    step = 'GetChangedResource'
+    stepType = 'copilot'
+    listAttachmentPath = [
+        os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
+    ]
+    outputSavePath = os.path.join(attachmentPath, 'GetChangedResourceOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f'List the changed resources based on the attached files. Only the resources with corresponding files changed in `{servicePath}` should be listed. Resource names should be listed in the format of `azurerm_{{resource name}}`.',
+                'attachments': listAttachmentPath
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'outputSavePath': outputSavePath,
+        'nextStep': 'ConfigureRunTerracorder'
+    }
+
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunTerracorder', 'RunTerracorder', 'GetTestRegex')
+
+    step = 'GetTestRegex'
+    stepType = 'copilot'
+    listAttachmentPath = [
+        os.path.join(attachmentPath, 'RunTerracorderOutput*.json')
+    ]
+    outputSavePath = os.path.join(attachmentPath, 'GetTestRegexOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Combine the test name regular expression patterns listed in the attached files into one.",
+                'attachments': listAttachmentPath
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'outputSavePath': outputSavePath,
         'nextStep': ''
     }
 
@@ -1291,6 +1563,12 @@ def getFlow():
             dictStepConfig = getRunParallelTestFlow()
         case 'propertyName2ListResource':
             dictStepConfig = getPropertyName2ListResourceFlow()
+        case 'document':
+            dictStepConfig = getDocumentFlow()
+        case 'fixCommand':
+            dictStepConfig = getFixCommandFlow()
+        case 'prContent2TestRegex':
+            dictStepConfig = getPrContent2TestRegexFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':

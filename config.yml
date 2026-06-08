@@ -4,8 +4,10 @@ path:
   attachment: 'attachment'
   home: '/home/v-yyeo/'
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
+  terracorder: '/home/v-yyeo/terracorder'
   azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
   services: 'internal/services/desktopvirtualization'
+  document: 'website/docs'
   pandora: '/home/v-yyeo/pandora'
   sdk: '/home/v-yyeo/go-azure-sdk'
   locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
@@ -52,13 +54,20 @@ port:
 # Codes according to test results
 # propertyName2ListResource
 # Check if list resource test is correct
+# document
+# Check if document is correct
+# fixCommand
+# Check if fix command is correct
+# Review with `terraform-azurerm-ai-assisted-development`
+# prContent2TestRegex
+# Create PR
 
 # flattenProperty
 # property2Required
 # property
 # attribute
 # customizeDiff
-flow: 'propertyName2ListResource'
+flow: 'prContent2TestRegex'
 
 # runParallelTest
 testFileSuffix: '_resource_test'
