@@ -5,7 +5,7 @@ path:
   home: '/home/v-yyeo/'
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
   terracorder: '/home/v-yyeo/terracorder'
-  azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
+  azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
   services: 'internal/services/desktopvirtualization'
   document: 'website/docs'
   pandora: '/home/v-yyeo/pandora'
@@ -14,7 +14,6 @@ path:
 
 defaultModel: 'claude-haiku-4.5'
 # virtual_desktop_app_attach_package
-# virtual_desktop_msix_image
 # virtual_desktop_application
 resource: 'virtual_desktop_app_attach_package'
 clientResource: ''
@@ -42,7 +41,7 @@ port:
 # Check if `TestAcc{pascalCaseResource}_basic` makes sense
 # basicTest
 # Fix `TestAcc{pascalCaseResource}_basic`
-# completeTest
+# requiresImportCompleteTest
 # Fix `TestAcc{pascalCaseResource}_complete`
 # validateFunc
 # Check if `ValidateFunc` is applied correctly
@@ -61,6 +60,7 @@ port:
 # Review with `terraform-azurerm-ai-assisted-development`
 # prContent2TestRegex
 # Create PR
+# Run test in TeamCity
 
 # flattenProperty
 # property2Required
@@ -68,6 +68,9 @@ port:
 # attribute
 # customizeDiff
 flow: 'prContent2TestRegex'
+
+# validateFunc maxItems forceNew
+referenceTest: 'complete' # complete
 
 # runParallelTest
 testFileSuffix: '_resource_test'

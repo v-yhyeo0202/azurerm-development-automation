@@ -682,10 +682,22 @@ def configureRunCompleteTest(dictStepConfig):
 
     return nextStep
 
-def getCompleteTestFlow():
+def getRequiresImportCompleteTestFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateCompleteTest'
+        'firstStep': 'GenerateRequiresImportTest'
+    }
+
+    step = 'GenerateRequiresImportTest'
+    dictStepConfig['step'][step] = {
+        'type': 'copilot',
+        'input': [
+            {
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_requiresImport` in [{testFile}]({testPath}) if have not done so. Refer to `basic` method to generate `requiresImport` method."
+            }
+        ],
+        'model': 'claude-sonnet-4.6',
+        'nextStep': 'GenerateCompleteTest'
     }
 
     step = 'GenerateCompleteTest'
@@ -765,7 +777,7 @@ def configureGenerateValidateFuncTest(dictStepConfig):
                 listTestValue = ['🙂\\/"[]:|<>+=;,?*@&', 'a' * 256]
 
         listRule = [
-            f'1. Refer to [`TestAcc{pascalCaseResource}_complete`]({testPath}) to generate the test.',
+            f"1. Refer to [`TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}`]({testPath}) to generate the test.",
             '2. Do not use `ExpectError` and `PlanOnly` in the test.'
         ]
         listInput = []
@@ -822,8 +834,9 @@ def configureGenerateMaxItemsTest(dictStepConfig):
         propertyName = listProperty[flowControl.dictIndex[step]]
         testName = f'TestAcc{pascalCaseResource}_mi_{propertyName}'
         listRule = [
-            '1. Use `count`, `for_each`, or `dynamic` block when applicable.',
-            '2. Other resources which the property depends on should be created according to the number of the property elements when necessary.'
+            f"1. Refer to [`TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}`]({testPath}) to generate the test.",
+            '2. Use `count`, `for_each`, or `dynamic` block when applicable.',
+            '3. Other resources which the property depends on should be created according to the number of the property elements when necessary.'
         ]
         dictStepConfig['step'][nextStep] = {
             'type': 'copilot',
@@ -886,13 +899,13 @@ def configureGenerateForceNewTest(dictStepConfig):
 
         if (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1) and bElemResource:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to add second element to `{propertyName}`."
                 f"3. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`."
             ]
         elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and bRequired and (maxItems == 0 or maxItems > 1) and not bElemResource:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with 1 element that has only `Required` child properties by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to second value.",
                 f"3. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to first value.",
                 f"4. Update `{dictConfig['resource']}` to add second element to `{propertyName}`."
@@ -900,13 +913,13 @@ def configureGenerateForceNewTest(dictStepConfig):
             ]
         elif propertyType == 'TypeList' and not bRequired and maxItems == 1:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
                 f"3. Update `{dictConfig['resource']}` to remove `{propertyName}`."
             ]
         elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and not bRequired and (maxItems == 0 or maxItems > 1) and bElemResource:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
                 f"3. Update `{dictConfig['resource']}` to add second element to `{propertyName}`.",
                 f"4. Update `{dictConfig['resource']}` to remove the second element of `{propertyName}`.",
@@ -914,7 +927,7 @@ def configureGenerateForceNewTest(dictStepConfig):
             ]
         elif (propertyType == 'TypeList' or propertyType == 'TypeMap' or propertyType == 'TypeSet') and not bRequired and (maxItems == 0 or maxItems > 1) and not bElemResource:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to contain `{propertyName}` with 1 element that has only `Required` child properties.",
                 f"3. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to second value.",
                 f"4. Update `{dictConfig['resource']}` to change the `{propertyName}` element value to first value.",
@@ -924,19 +937,19 @@ def configureGenerateForceNewTest(dictStepConfig):
             ]
         elif bRequired:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with first value by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` which contains `{propertyName}` with first value by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to change `{propertyName}` to second value."
                 f"3. Update `{dictConfig['resource']}` to change `{propertyName}` to first value."
             ]
         elif bDefault:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to add `{propertyName}` with value different from `Default` value stated in [{resourceFile}]({resourcePath}).",
                 f"3. Update `{dictConfig['resource']}` to remove `{propertyName}`."
             ]
         else:
             listStep = [
-                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}).",
+                f"1. Create `{dictConfig['resource']}` without `{propertyName}` by referring to `TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}` in [{testFile}]({testPath}).",
                 f"2. Update `{dictConfig['resource']}` to add `{propertyName}` with first value.",
                 f"3. Update `{dictConfig['resource']}` to change `{propertyName}` to second value.",
                 f"4. Update `{dictConfig['resource']}` to change `{propertyName}` to first value.",
@@ -1209,6 +1222,12 @@ def configureMakeGenerate(dictStepConfig):
 
     return nextStep
 
+def configureAzurermLinter(dictStepConfig):
+    step = 'ConfigureAzurermLinter'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
+
+    return nextStep
+
 def getFixCommandFlow():
     dictStepConfig = {
         'step': {},
@@ -1240,7 +1259,7 @@ def getFixCommandFlow():
         ['make', 'terrafmt'],
         ['make', 'document-fix'],
         ['make', 'generate'],
-        ['azurerm-linter']
+        [os.path.join(dictConfig['path']['home'], 'go', 'bin', 'azurerm-linter')]
     ]
 
     for i, (step, command) in enumerate(zip(listStep, listCommand)):
@@ -1259,16 +1278,16 @@ def getFixCommandFlow():
             'nextStep': f'Evaluate{step}'
         }
 
-        step = f'Evaluate{step}'
+        evaluateStep = f'Evaluate{step}'
         stepType = 'copilot'
         listAttachmentPath = [
             saveOutputPath
         ]
-        dictStepConfig['step'][step] = {
+        dictStepConfig['step'][evaluateStep] = {
             'type': stepType,
             'input': [
                 {
-                    'prompt': f"Check if there are changes needed based on attached file containing output of `{' '.join(command)}`. If there are, fix it.",
+                    'prompt': f"Check if there are changes needed based on attached file containing output of `{' '.join(command)}` command. If there are, fix it. If `{' '.join(command)}` command has fixed the error, do not carry out additional fix and consider that no change is needed.",
                     'attachments': listAttachmentPath
                 },
                 {
@@ -1342,12 +1361,14 @@ def getPrContent2TestRegexFlow():
 
     step = 'GetFile2Review'
     stepType = 'copilot'
+    identityTestFile = f"{dictConfig['resource']}_identity_gen_test.go"
     listExcludedFile = [
         f"1. {os.path.join(dictConfig['path']['azurerm'], 'go.mod')}",
         f"2. {os.path.join(dictConfig['path']['azurerm'], 'go.sum')}",
         f"3. {os.path.join(dictConfig['path']['azurerm'], 'vendor', '*')}",
         f"4. {os.path.join(dictConfig['path']['azurerm'], '.github', '*')}",
-        f"5. {os.path.join(servicePath, 'testdata', '*')}"
+        f"5. {os.path.join(servicePath, identityTestFile)}",
+        f"6. {os.path.join(servicePath, 'testdata', '*')}"
     ]
     outputSavePath = os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
     dictStepConfig['step'][step] = {
@@ -1371,6 +1392,7 @@ def getPrContent2TestRegexFlow():
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
+            'overwrite': True,
             'path': prContentPath
         },
         'nextStep': 'GetChangedResource'
@@ -1378,6 +1400,7 @@ def getPrContent2TestRegexFlow():
 
     step = 'GetChangedResource'
     stepType = 'copilot'
+    mainServicePath = os.path.join(dictConfig['path']['azurerm'], 'internal', 'services')
     listAttachmentPath = [
         os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
     ]
@@ -1386,7 +1409,7 @@ def getPrContent2TestRegexFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f'List the changed resources based on the attached files. Only the resources with corresponding files changed in `{servicePath}` should be listed. Resource names should be listed in the format of `azurerm_{{resource name}}`.',
+                'prompt': f'List the changed resources based on the attached files. Only the resources with corresponding files changed in `{mainServicePath}` should be listed. Resource names should be listed in the format of `azurerm_{{resource name}}`.',
                 'attachments': listAttachmentPath
             },
             {
@@ -1551,8 +1574,8 @@ def getFlow():
             dictStepConfig = getCrud2BasicTestFlow()
         case 'basicTest':
             dictStepConfig = getBasicTestFlow()
-        case 'completeTest':
-            dictStepConfig = getCompleteTestFlow()
+        case 'requiresImportCompleteTest':
+            dictStepConfig = getRequiresImportCompleteTestFlow()
         case 'validateFunc':
             dictStepConfig = getValidateFuncFlow()
         case 'maxItems':

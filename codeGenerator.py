@@ -149,7 +149,7 @@ Version 5.0
 
 ## Change Log
 
-- `azurerm_{dictConfig['resource']}` - add resource and list resource
+* `azurerm_{dictConfig['resource']}` - add resource and list resource
 '''.strip()
 
 	return prContent

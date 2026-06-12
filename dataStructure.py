@@ -8,7 +8,7 @@ class GenerateReplaceDirectiveOutput(pydantic.BaseModel):
     sdkPackage: str = pydantic.Field(description = 'Package path of SDK to be imported according to go-azure-sdk repository')
 
 class GetPortalPropertyOutput(pydantic.BaseModel):
-    listPortalProperty: dict[str, str] = pydantic.Field(description = 'Dictionary of resource properties according to portal screenshot, where key is the portal property and value is the corresponding specification property')
+    dictPortalProperty: dict[str, str] = pydantic.Field(description = 'Dictionary of resource properties according to portal screenshot, where key is the portal property and value is the corresponding specification property')
 
 class EvaluateBasicTestOutput(pydantic.BaseModel):
     bPass: bool = pydantic.Field(description = 'Whether basic test passes')
@@ -37,6 +37,9 @@ class EvaluateMakeDocumentFixOutput(pydantic.BaseModel):
 class EvaluateMakeGenerateOutput(pydantic.BaseModel):
     bChange: bool = pydantic.Field(description = 'Whether changes are done')
 
+class EvaluateAzurermLinterOutput(pydantic.BaseModel):
+    bChange: bool = pydantic.Field(description = 'Whether changes are done')
+
 class GetDocumentationLinkOutput(pydantic.BaseModel):
     documentationLink: str = pydantic.Field(description = 'Link of documentation corresponds to the specification')
 
@@ -47,7 +50,7 @@ class GetChangedResourceOutput(pydantic.BaseModel):
     listChangedResource: list[str] = pydantic.Field(description = 'List of changed resources')
 
 class GetTestRegexOutput(pydantic.BaseModel):
-    testRegex: str = pydantic.Field(description = 'Combined test name regular expression pattern')
+    dictTestRegex: dict[str, str] = pydantic.Field(description = 'Dictionary of combined test name regular expression patterns, where key is service directory which contains the tests and value is the regular expression pattern')
 
 class HttpLog(pydantic.BaseModel):
     method: str
