@@ -15,6 +15,7 @@ try:
     dictStepConfig = flowGenerator.getFlow()
     step = dictStepConfig['firstStep']
     dictOutput = None
+    os.makedirs(os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource']), exist_ok = True)
 
     while step:
         print(f'Step: {step}')

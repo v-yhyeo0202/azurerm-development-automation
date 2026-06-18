@@ -165,6 +165,8 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'input': {
             'cwd': dictConfig['path']['pandora'],
             'command': [
+                ['git', 'restore', '.'],
+                ['git', 'clean', '-d', '-f'],
                 ['git', 'checkout', 'main'],
                 ['git', 'fetch', 'upstream'],
                 ['git', 'merge', 'upstream/main'],
@@ -207,7 +209,7 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
             ],
             'env': dictEnvironment
         },
-        'nextStep': 'InitializePandoraDataApi'
+        'nextStep': 'GenerateSdkWithPandora'
     }
 
     stepWrapper.addService(dictStepConfig, 'InitializePandoraDataApi', 'GenerateSdkWithPandora')
@@ -238,6 +240,8 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'input': {
             'cwd': dictConfig['path']['sdk'],
             'command': [
+                ['git', 'restore', '.'],
+                ['git', 'clean', '-d', '-f'],
                 ['git', 'checkout', 'main'],
                 ['git', 'restore', '.'],
                 ['git', 'fetch', 'upstream'],
@@ -600,7 +604,7 @@ def addInitializeHttpProxy(dictStepConfig, nextStep):
 
 def configureRunBasicTest(dictStepConfig):
     step = 'ConfigureRunBasicTest'
-    nextStep = flowControl.generateIndex(dictStepConfig[step], step, 10)
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, 10)
 
     return nextStep
 
@@ -647,6 +651,7 @@ def getBasicTestFlow():
         f"2. Add only 1 of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_basic` according to [specification]({dictConfig['specification']}) if necessary, and do not do so if it is not necessary.",
         f"3. If parent property is added according to rule 2, only add the required child properties under the parent property according to [specification]({dictConfig['specification']}). If there is no required child property, add any 1 of the child properties.",
         '4. If a property or both parent and child properties are added according to rule 2, apply `Required` behavior to the properties.',
+        '5. If test fails due to `Failed to install provider` or `Failed to query available provider packages` error, do not carry out any change.'
     ]
     listAttachmentPath = [
         os.path.join(attachmentPath, 'RunBasicTestHttpLog.json'),
@@ -715,7 +720,7 @@ def getRequiresImportCompleteTestFlow():
             }
         ],
         'model': 'claude-opus-4.8',
-        'nextStep': 'ConfigureRunCompleteTest'
+        'nextStep': 'InitializeHttpProxyListener'
     }
 
     addInitializeHttpProxy(dictStepConfig, 'ConfigureRunCompleteTest')
@@ -726,7 +731,8 @@ def getRequiresImportCompleteTestFlow():
     stepType = 'copilot'
     listRule = [
         f"1. Check [{resourceFile}]({resourcePath}), [specification]({dictConfig['specification']}), and any relevant information from web to find the solution.",
-        f"2. Add only 1 of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_complete` according to [specification]({dictConfig['specification']}) if necessary, and do not do so if it is not necessary."
+        f"2. Add only 1 of the missing properties stated in the logs to [{resourceFile}]({resourcePath}) and `TestAcc{pascalCaseResource}_complete` according to [specification]({dictConfig['specification']}) if necessary, and do not do so if it is not necessary.",
+        '3. If test fails due to `Failed to install provider` or `Failed to query available provider packages` error, do not carry out any change.'
     ]
     listAttachmentPath = [
         os.path.join(attachmentPath, 'RunCompleteTestHttpLog.json'),
@@ -773,8 +779,8 @@ def configureGenerateValidateFuncTest(dictStepConfig):
                 listTestName =  ['negative', 'zero', 'digit2', 'digit3', 'digit4', 'uint16', 'int32', 'uint32']
                 listTestValue = [-1, 0, 64, 128, 1024, 65535, 2147483647, 4294967295] if propertyType == 'TypeInt' else [-0.1, 0, 64.1, 128.1, 1024.1, 65535.1, 2147483647.1, 4294967295.1]
             case 'TypeString':
-                listTestName = ['emojiSpecialChar', 'maxLength']
-                listTestValue = ['🙂\\/"[]:|<>+=;,?*@&', 'a' * 256]
+                listTestName = ['emojiSpecialChar', 'maxLength', 'minLength', 'startEndWithNumber', 'startEndWithHyphen', 'capitalLetter']
+                listTestValue = ['🙂/\\"[]:|<>+=;,?*@&', 'a' * 256, 'a', '0aaaaaa0', '-aa--aa-', 'AAAAAAAA']
 
         listRule = [
             f"1. Refer to [`TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}`]({testPath}) to generate the test.",
@@ -1031,28 +1037,31 @@ def getRunParallelTestFlow():
 def getPropertyName2ListResourceFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateListResourceTest'
+        'firstStep': 'RearrangeSchemaProperty'
     }
 
-    step = 'ChangePropertyName'
-    stepType = 'copilot'
-    changedPropertyName = ', '.join([f'`{k}` to `{v}`' for k, v in dictConfig['propertyNameMap'].items()])
-    listRule = [
-        f'1. Change property names in `{pascalCaseResource}Model` structure accordingly.',
-        '2. Change variable and function argument names which are assigned the properties mentioned in rule 1 accordingly.',
-        '3. Change property names in error messages accordingly.',
-        '4. Change property names in tests accordingly.'
-    ]
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Change property names from {changedPropertyName} in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}). Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
-            }
-        ],
-        'model': 'claude-opus-4.8',
-        'nextStep': 'RearrangeSchemaProperty'
-    }
+    if dictConfig['propertyNameMap']:
+        dictStepConfig['firstStep'] = 'ChangePropertyName'
+
+        step = 'ChangePropertyName'
+        stepType = 'copilot'
+        changedPropertyName = ', '.join([f'`{k}` to `{v}`' for k, v in dictConfig['propertyNameMap'].items()])
+        listRule = [
+            f'1. Change property names in `{pascalCaseResource}Model` structure accordingly.',
+            '2. Change variable and function argument names which are assigned the properties mentioned in rule 1 accordingly.',
+            '3. Change property names in error messages accordingly.',
+            '4. Change property names in tests accordingly.'
+        ]
+        dictStepConfig['step'][step] = {
+            'type': stepType,
+            'input': [
+                {
+                    'prompt': f"Change property names from {changedPropertyName} in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}). Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
+                }
+            ],
+            'model': 'claude-opus-4.8',
+            'nextStep': 'RearrangeSchemaProperty'
+        }
 
     step = 'RearrangeSchemaProperty'
     stepType = 'copilot'
@@ -1158,7 +1167,7 @@ def getPropertyName2ListResourceFlow():
 def getDocumentFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GenerateListResourceDocument'
+        'firstStep': 'GenerateResourceDocument'
     }
 
     step = 'GenerateResourceDocument'
@@ -1361,7 +1370,7 @@ def getPrContent2TestRegexFlow():
 
     step = 'GetFile2Review'
     stepType = 'copilot'
-    identityTestFile = f"{dictConfig['resource']}_identity_gen_test.go"
+    identityTestFile = f"{dictConfig['resource']}_resource_identity_gen_test.go"
     listExcludedFile = [
         f"1. {os.path.join(dictConfig['path']['azurerm'], 'go.mod')}",
         f"2. {os.path.join(dictConfig['path']['azurerm'], 'go.sum')}",
@@ -1439,6 +1448,38 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
+        'model': 'claude-sonnet-4.6',
+        'outputSavePath': outputSavePath,
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
+def getTctestFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'tctest'
+    }
+
+    step = 'tctest'
+    stepType = 'command'
+    listCommand = ['tctest', 'pr', dictConfig['pr'], '-q']
+    property4 = ''
+    property5 = 'env.ARM_FIVEPOINTZERO_BETA=true'
+
+    if dictConfig['parallelism']:
+        property4 = f"{property4}{';' if property4 else ''}PARALLELISM={dictConfig['parallelism']}"
+        property5 = f"{property5};PARALLELISM={dictConfig['parallelism']}"
+
+    outputSavePath = os.path.join(attachmentPath, 'tctestOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                listCommand + ['--properties', property4] if property4 else listCommand,
+                listCommand + ['--properties', property5]
+            ]
+        },
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -1592,6 +1633,8 @@ def getFlow():
             dictStepConfig = getFixCommandFlow()
         case 'prContent2TestRegex':
             dictStepConfig = getPrContent2TestRegexFlow()
+        case 'tctest':
+            dictStepConfig = getTctestFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':

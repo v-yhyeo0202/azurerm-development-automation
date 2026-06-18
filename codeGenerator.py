@@ -139,8 +139,6 @@ Files to be reviewed:
 
 ## Testing
 
-The tests run are determined using [terraform-terracorder](https://github.com/WodansSon/terraform-terracorder).
-
 Version 4.0
 
 

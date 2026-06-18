@@ -148,7 +148,7 @@ def runCommand(dictInput):
     return dictOutput
 
 def generateCode(dictInput, functionName):
-    if os.path.exists(dictInput['path']) and not dictInput['overwrite']:
+    if os.path.exists(dictInput['path']) and ('overwrite' not in dictInput or not dictInput['overwrite']):
         print(f"File {dictInput['path']} already exists, skipping code generation")
 
         return

@@ -5,8 +5,10 @@ path:
   home: '/home/v-yyeo/'
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
   terracorder: '/home/v-yyeo/terracorder'
+  # Change below
   azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
-  services: 'internal/services/desktopvirtualization'
+  services: 'internal/services/cosmos'
+  # Change above
   document: 'website/docs'
   pandora: '/home/v-yyeo/pandora'
   sdk: '/home/v-yyeo/go-azure-sdk'
@@ -15,10 +17,12 @@ path:
 defaultModel: 'claude-haiku-4.5'
 # virtual_desktop_app_attach_package
 # virtual_desktop_application
-resource: 'virtual_desktop_app_attach_package'
+resource: 'cosmosdb_fleet'
 clientResource: ''
-specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json'
-serviceName: 'Desktop Virtualization'
+# https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json
+specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cosmos-db/resource-manager/Microsoft.DocumentDB/DocumentDB/stable/2025-10-15/fleet.json'
+# Desktop Virtualization
+serviceName: 'CosmosDB'
 pandoraServiceName: ''
 nHttpProxy: 2
 port:
@@ -33,6 +37,7 @@ port:
     - sender: 8090
       listener: 8091
 
+# Take screenshots
 # aiAssistedDevelopment2PortalProperty
 # Check if properties returned are correct
 # schema
@@ -61,29 +66,28 @@ port:
 # prContent2TestRegex
 # Create PR
 # Run test in TeamCity
+# tctest
 
 # flattenProperty
 # property2Required
 # property
 # attribute
 # customizeDiff
-flow: 'prContent2TestRegex'
+flow: 'tctest'
 
 # validateFunc maxItems forceNew
 referenceTest: 'complete' # complete
 
 # runParallelTest
-testFileSuffix: '_resource_test'
+testFileSuffix: '_resource_vf_test'
 testRegex: '_\w*'
 
 # changePropertyName
 propertyNameMap:
-  host_pool_references: 'host_pool_ids'
-  fail_health_check_on_staging_failure: 'health_check_status_on_failure'
-  image_uri: 'storage_share_file_id'
-  package_full_name: 'msix_package_name'
-  is_regular_registration: 'register_at_log_on_enabled'
-  is_active: 'state_enabled'
+
+# tctest
+pr: '31946'
+parallelism:
 
 # flattenProperty
 flattenParentProperty: 'image'
