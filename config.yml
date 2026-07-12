@@ -6,8 +6,8 @@ path:
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
   terracorder: '/home/v-yyeo/terracorder'
   # Change below
-  azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
-  services: 'internal/services/cosmos'
+  azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
+  services: 'internal/services/orbitalplanetarycomputer'
   # Change above
   document: 'website/docs'
   pandora: '/home/v-yyeo/pandora'
@@ -15,15 +15,13 @@ path:
   locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
 
 defaultModel: 'claude-haiku-4.5'
-# virtual_desktop_app_attach_package
-# virtual_desktop_application
-resource: 'cosmosdb_fleet'
+resource: 'geo_catalog'
 clientResource: ''
-# https://github.com/Azure/azure-rest-api-specs/blob/main/specification/desktopvirtualization/resource-manager/Microsoft.DesktopVirtualization/DesktopVirtualization/stable/2025-10-10/desktopvirtualization.json
-specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/cosmos-db/resource-manager/Microsoft.DocumentDB/DocumentDB/stable/2025-10-15/fleet.json'
-# Desktop Virtualization
-serviceName: 'CosmosDB'
-pandoraServiceName: ''
+specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/orbitalplanetarycomputer/resource-manager/Microsoft.Orbital/stable/2026-04-15/planetarycomputer.json'
+clientServiceName: 'Planetary Computer'
+pandoraService: ''
+pandoraServiceName: 'OrbitalPlanetaryComputer'
+sdkServiceName: 'orbitalplanaterycomputer'
 nHttpProxy: 2
 port:
   dataApi: 8083
@@ -73,10 +71,13 @@ port:
 # property
 # attribute
 # customizeDiff
-flow: 'tctest'
+# bumpApiVersion
+flow: 'customizeDiff'
 
 # validateFunc maxItems forceNew
-referenceTest: 'complete' # complete
+referenceTest: 'translateRequiredQueryParametersDefault' # complete
+generatedTestProperty:
+  - 'translate_required_query_parameters'
 
 # runParallelTest
 testFileSuffix: '_resource_vf_test'
@@ -86,7 +87,7 @@ testRegex: '_\w*'
 propertyNameMap:
 
 # tctest
-pr: '31946'
+pr: '31317'
 parallelism:
 
 # flattenProperty

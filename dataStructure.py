@@ -52,6 +52,9 @@ class GetChangedResourceOutput(pydantic.BaseModel):
 class GetTestRegexOutput(pydantic.BaseModel):
     dictTestRegex: dict[str, str] = pydantic.Field(description = 'Dictionary of combined test name regular expression patterns, where key is service directory which contains the tests and value is the regular expression pattern')
 
+class GetApiVersionLinkOutput(pydantic.BaseModel):
+    apiVersionLink: str = pydantic.Field(description = 'Link of upstream Go SDK API version directory link, empty if does not exist')
+
 class HttpLog(pydantic.BaseModel):
     method: str
     url: str

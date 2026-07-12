@@ -1,12 +1,13 @@
 import functools
 import json
 import os
+import re
 import yaml
 
 import flowControl
 import stepWrapper
 
-with open('config.yml') as f:
+with open('config.yml', 'r') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
 def formatMultilineCommand(inputString):
@@ -22,7 +23,8 @@ servicePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['se
 registrationPath = os.path.join(servicePath, 'registration.go')
 attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
 vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
-pandoraServiceName = dictConfig['pandoraServiceName'] if dictConfig['pandoraServiceName'] else dictConfig['serviceName'].replace(' ', '')
+pandoraService = dictConfig['pandoraServiceName'].lower() if not dictConfig['pandoraService'] else dictConfig['pandoraService']
+pandoraServiceName = dictConfig['pandoraServiceName']
 resourceFile = f"{dictConfig['resource']}_resource.go"
 resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], resourceFile)
 testFile = f"{dictConfig['resource']}_resource_test.go"
@@ -128,7 +130,7 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f'Add [service]({registrationPath}) and [client]({clientPath}) to [main service file]({mainServicePath}) and [main client file]({mainClientPath}) respectively if have not done so.Decide whether to add untyped, typed, and framework services based on interfaces of `Registration` structure in [service file]({registrationPath}).'
+                'prompt': f'Add [service]({registrationPath}) and [client]({clientPath}) to [main service file]({mainServicePath}) and [main client file]({mainClientPath}) respectively if have not done so. Decide whether to add untyped, typed, and framework services based on interfaces of `Registration` structure in [service file]({registrationPath}).'
             }
         ],
         'nextStep': 'PreGenerateSdk'
@@ -184,11 +186,18 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
     step = 'GenerateApiVersion'
     stepType = 'copilot'
     resourceManagerPath = os.path.join(dictConfig['path']['pandora'], 'config', 'resource-manager.hcl')
+    dataApiServerPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'data-api', 'internal', 'commands', 'serve.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Add API version in [Pandora resource-manager.hcl]({resourceManagerPath}) based on [specification]({dictConfig['specification']}) if have not done so."
+                'prompt': f'Check if `{pandoraService}` service exists in [Pandora `resource-manager.hcl`]({resourceManagerPath}). If it does not exist, add the service with `name` as {pandoraServiceName} and empty `available` list.'
+            },
+            {
+                'prompt': f"Add API version in [Pandora `resource-manager.hcl]({resourceManagerPath}) based on [specification]({dictConfig['specification']}) if have not done so."
+            },
+            {
+                'prompt': f"Change port number in [Pandora `serve.go`]({dataApiServerPath}) from `8080` to `8083` if have not done so."
             }
         ],
         'nextStep': 'GenerateApiDefinition'
@@ -209,7 +218,7 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
             ],
             'env': dictEnvironment
         },
-        'nextStep': 'GenerateSdkWithPandora'
+        'nextStep': 'InitializePandoraDataApi'
     }
 
     stepWrapper.addService(dictStepConfig, 'InitializePandoraDataApi', 'GenerateSdkWithPandora')
@@ -225,9 +234,9 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'input': {
             'cwd': workingDirectoryPath,
             'command': [
+                ['rm', '-rf', sourceSdkPath],
                 ['go', 'build', '.'],
                 ['./generator-go-sdk', 'resource-manager', 'generate', '--output-dir', dictConfig['path']['locallyGeneratedSdk'], '--services', pandoraServiceName, '--data-api', dataApiUrl],
-                ['cp', '-r', sourceSdkPath, destinationSdkPath]
             ]
         },
         'nextStep': 'UpdateGoAzureSdk'
@@ -235,6 +244,8 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
 
     step = 'UpdateGoAzureSdk'
     stepType = 'command'
+    sourceSdkPath = os.path.join(dictConfig['path']['locallyGeneratedSdk'], 'resource-manager', pandoraServiceName.lower())
+    destinationSdkPath = os.path.join(dictConfig['path']['sdk'], 'resource-manager')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
@@ -246,7 +257,9 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
                 ['git', 'restore', '.'],
                 ['git', 'fetch', 'upstream'],
                 ['git', 'merge', 'upstream/main'],
-                ['git', 'push', 'origin', 'main']
+                ['git', 'push', 'origin', 'main'],
+                ['rm', '-rf', os.path.join(destinationSdkPath, pandoraServiceName.lower())],
+                ['cp', '-r', sourceSdkPath, destinationSdkPath]
             ]
         },
         'nextStep': 'GenerateReplaceDirective'
@@ -260,13 +273,13 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']})."
+                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). Do not run any Go command."
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GenerateSdkImport'
     }
@@ -311,7 +324,7 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GetPortalProperty'
     }
 
@@ -378,7 +391,7 @@ def getSchemaFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateBehavior'
     }
 
@@ -420,7 +433,7 @@ def getSchemaFlow():
                 'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': ''
     }
 
@@ -440,13 +453,14 @@ def getCrud2BasicTestFlow():
         '3. For `Optional` properties without `Default` behavior, check if properties are set before assigning to `param` structure.',
         '4. For `Optional` `TypeInt` properties, use `metadata.ResourceDiff.GetRawConfig` method to check if properties are not null before assigning to `param` structure.',
         '5. Use `client.CreateOrUpdate` method with polling when possible.',
-        '6. `expand` should be methods instead of functions.',
-        '7. `expand` methods should be generated at the end of codes.',
-        '8. `expand` methods should only be created when assigning more than 1 child property to a Go SDK parent property.',
-        '9. Do not expand Go SDK root level `Properties` structure.',
-        '10. Do not have to check if `Required` `TypeList` or `TypeSet` properties are empty in `expand` methods.',
-        '11. Use `pointer.To` to convert properties to pointers.',
-        f"12. Use `pointer.ToEnum` to convert `string` properties to pointers for properties with `enum` field in [specification]({dictConfig['specification']})."
+        '6. Use `client.CreateOrUpdate` method with `SetIDAndIdentityCallback` function when possible.',
+        '7. `expand` should be methods instead of functions.',
+        '8. `expand` methods should be generated at the end of codes.',
+        '9. `expand` methods should only be created when assigning more than 1 child property to a Go SDK parent property.',
+        '10. Do not expand Go SDK root level `Properties` structure.',
+        '11. Do not have to check if `Required` `TypeList` or `TypeSet` properties are empty in `expand` methods.',
+        '12. Use `pointer.To` to convert properties to pointers.',
+        f"13. Use `pointer.ToEnum` to convert `string` properties to pointers for properties with `enum` field in [specification]({dictConfig['specification']})."
     ]
     listAttachmentPath = [
         os.path.join(attachmentPath, 'PreGenerateSdkOutput.json'),
@@ -473,7 +487,7 @@ def getCrud2BasicTestFlow():
         '3. Instead of initialize `param` structure in `Update` method, use the model obtained from `client.Get` method.',
         '4. Do not include properties with `ForceNew` behavior in `Update` method.',
         '5. Only assign properties to `param` structure if `metadata.HasChange` method returns true for the properties in `Update` method.',
-        '6. Use `client.CreateOrUpdate` method instead of `client.Update` in `Update` method.',
+        '6. Use `client.CreateOrUpdate` method instead of `client.Update` in `Update` method when possible.',
         '7. Use `client.CreateOrUpdate` method with polling when possible.',
         '8. Apply `sdk.ResourceWithUpdate` interface if `Update` method is implemented.',
         '9. Use existing `expand` methods when possible.',
@@ -558,7 +572,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Generate resource identity in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'RefactorFlatten'
     }
 
@@ -571,7 +585,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Wrap part of `Read` method in [{resourceFile}]({resourcePath}) from `state` initialization to `metadata.Encode` method (inclusive) in a separate `flatten` method. The `flatten` method should be located directly after `IDValidationFunc` method."
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateBasicTest'
     }
 
@@ -701,7 +715,7 @@ def getRequiresImportCompleteTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_requiresImport` in [{testFile}]({testPath}) if have not done so. Refer to `basic` method to generate `requiresImport` method."
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateCompleteTest'
     }
 
@@ -765,7 +779,7 @@ def getRequiresImportCompleteTestFlow():
 def configureGenerateValidateFuncTest(dictStepConfig):
     step = 'ConfigureGenerateValidateFuncTest'
 
-    with open(os.path.join(attachmentPath, 'GetPropertyWithoutValidateFuncOutput.json')) as f:
+    with open(os.path.join(attachmentPath, 'GetPropertyWithoutValidateFuncOutput.json'), 'r') as f:
         listPropertyType = json.load(f)['listPropertyWithoutValidateFunc']
 
     nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listPropertyType))
@@ -777,7 +791,7 @@ def configureGenerateValidateFuncTest(dictStepConfig):
         match propertyType:
             case 'TypeFloat' | 'TypeInt':
                 listTestName =  ['negative', 'zero', 'digit2', 'digit3', 'digit4', 'uint16', 'int32', 'uint32']
-                listTestValue = [-1, 0, 64, 128, 1024, 65535, 2147483647, 4294967295] if propertyType == 'TypeInt' else [-0.1, 0, 64.1, 128.1, 1024.1, 65535.1, 2147483647.1, 4294967295.1]
+                listTestValue = [-1, 0, 64, 128, 1024, 65535, 2147483647, 4294967295] if propertyType == 'TypeInt' else [-0.1, 0.0, 64.1, 128.1, 1024.1, 65535.1, 2147483647.1, 4294967295.1]
             case 'TypeString':
                 listTestName = ['emojiSpecialChar', 'maxLength', 'minLength', 'startEndWithNumber', 'startEndWithHyphen', 'capitalLetter']
                 listTestValue = ['🙂/\\"[]:|<>+=;,?*@&', 'a' * 256, 'a', '0aaaaaa0', '-aa--aa-', 'AAAAAAAA']
@@ -831,7 +845,7 @@ def getValidateFuncFlow():
 def configureGenerateMaxItemsTest(dictStepConfig):
     step = 'ConfigureGenerateMaxItemsTest'
 
-    with open(os.path.join(attachmentPath, 'GetParentPropertyWithoutMaxItemsOutput.json')) as f:
+    with open(os.path.join(attachmentPath, 'GetParentPropertyWithoutMaxItemsOutput.json'), 'r') as f:
         listProperty = json.load(f)['listParentPropertyWithoutMaxItems']
 
     nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listProperty))
@@ -887,10 +901,17 @@ def getMaxItemsFlow():
 def configureGenerateForceNewTest(dictStepConfig):
     step = 'ConfigureGenerateForceNewTest'
 
-    with open(os.path.join(attachmentPath, 'GetPropertyWithoutForceNewOutput.json')) as f:
+    with open(os.path.join(attachmentPath, 'GetPropertyWithoutForceNewOutput.json'), 'r') as f:
         listPropertyBehavior = json.load(f)['listPropertyWithoutForceNew']
 
     nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listPropertyBehavior))
+
+    while(dictConfig['generatedTestProperty'] and listPropertyBehavior[flowControl.dictIndex[step]][0] not in dictConfig['generatedTestProperty']):
+        if(flowControl.dictIndex[step] < len(listPropertyBehavior) - 1):
+            nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listPropertyBehavior))
+        else:
+
+            return ''
 
     if nextStep == 'GenerateForceNewTest':
         propertyName = listPropertyBehavior[flowControl.dictIndex[step]][0]
@@ -1000,7 +1021,7 @@ def getForceNewFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
         'nextStep': 'ConfigureGenerateForceNewTest'
     }
@@ -1078,7 +1099,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties in `Arguments` and `Attributes` methods in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'RearrangeStructureProperty'
     }
 
@@ -1096,7 +1117,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties of `{pascalCaseResource}Model` structure in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'RearrangeTestProperty'
     }
 
@@ -1118,7 +1139,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties of all resources in [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateListResource'
     }
 
@@ -1140,7 +1161,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Check if there are [`ListBy*` methods]({listPath}) for {dictConfig['resource']}. If there is, generate [{listResourceFile}]({listResourcePath}) if have not done so according to the `ListBy*` methods and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateListResourceTest'
     }
 
@@ -1188,7 +1209,7 @@ def getDocumentFlow():
                 'prompt': f"Generate [document for `{dictConfig['resource']}` resource]({resourceDocumentPath}) according to [{resourceFile}]({resourcePath}), [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': 'GenerateListResourceDocument'
     }
 
@@ -1268,7 +1289,7 @@ def getFixCommandFlow():
         ['make', 'terrafmt'],
         ['make', 'document-fix'],
         ['make', 'generate'],
-        [os.path.join(dictConfig['path']['home'], 'go', 'bin', 'azurerm-linter')]
+        ['azurerm-linter']
     ]
 
     for i, (step, command) in enumerate(zip(listStep, listCommand)):
@@ -1300,10 +1321,10 @@ def getFixCommandFlow():
                     'attachments': listAttachmentPath
                 },
                 {
-                    'prompt': outputFormatPrompt(_step = step)
+                    'prompt': outputFormatPrompt(_step = f'Evaluate{step}')
                 }
             ],
-            'model': 'claude-sonnet-4.6',
+            'model': 'claude-sonnet-5',
             'nextStep': {
                 'bChange': {
                     True: f'Configure{step}',
@@ -1317,7 +1338,7 @@ def getFixCommandFlow():
 def configureRunTerracorder(dictStepConfig):
     step = 'ConfigureRunTerracorder'
 
-    with open(os.path.join(attachmentPath, 'GetChangedResourceOutput.json')) as f:
+    with open(os.path.join(attachmentPath, 'GetChangedResourceOutput.json'), 'r') as f:
         listResource = json.load(f)['listChangedResource']
 
     nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listResource))
@@ -1363,7 +1384,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GetFile2Review'
     }
@@ -1390,7 +1411,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GeneratePrContent'
     }
@@ -1448,7 +1469,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -1463,7 +1484,7 @@ def getTctestFlow():
 
     step = 'tctest'
     stepType = 'command'
-    listCommand = ['tctest', 'pr', dictConfig['pr'], '-q']
+    listCommand = ['tctest', 'pr', '-c', '-q', dictConfig['pr']]
     property4 = ''
     property5 = 'env.ARM_FIVEPOINTZERO_BETA=true'
 
@@ -1476,6 +1497,7 @@ def getTctestFlow():
         'type': stepType,
         'input': {
             'command': [
+                ['go', 'install', 'github.com/katbyte/tctest@latest'],
                 listCommand + ['--properties', property4] if property4 else listCommand,
                 listCommand + ['--properties', property5]
             ]
@@ -1507,7 +1529,7 @@ def getFlattenPropertyFlow():
                 'prompt': f"Flatten all child properties under `{dictConfig['flattenParentProperty']}` parent property in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': ''
     }
 
@@ -1550,7 +1572,7 @@ def getPropertyFlow():
                 'prompt': f"Generate {generatedProperty} properties to `Argument` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': ''
     }
 
@@ -1572,7 +1594,7 @@ def getAttributeFlow():
                 'prompt': f"Generate {generatedAttribute} properties to `Attributes` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly."
             }
         ],
-        'model': 'claude-sonnet-4.6',
+        'model': 'claude-sonnet-5',
         'nextStep': ''
     }
 
@@ -1600,6 +1622,75 @@ def getCustomizeDiffFlow():
         ],
         'nextStep': ''
     }
+
+    return dictStepConfig
+
+def configureBumpApi(dictStepConfig):
+    with open(os.path.join(attachmentPath, 'GetFileWithServiceOutput.json'), 'r') as f:
+        listFilePathWithService = json.load(f)['filePathWithService']
+
+    step = 'ConfigureBumpApi'
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listFilePathWithService))
+
+    if nextStep == 'BumpApi':
+        filePathWithService = listFilePathWithService[flowControl.dictIndex[step]]
+
+        with open(os.path.join(attachmentPath, 'GetApiVersionLinkOutput.json'), 'r') as f:
+            apiVersionLink = json.load(f)['apiVersionLink']
+
+        if not apiVersionLink:
+            apiVersionLink = os.path.join(dictConfig['path']['sdk'], 'resource-manager', dictConfig['sdkServiceName'])
+
+        stepType = 'copilot'
+        dictStepConfig['step'][nextStep] = {
+            'type': stepType,
+            'input': [
+                {
+                    'prompt': f'Change API version of `go-azure-sdk` package in [AzureRM repository file]({filePathWithService}) to latest one if the package is listed in [Go SDK repository]({apiVersionLink}). Do not run any Go command. Ignore any error if there is.'
+                }
+            ],
+            'model': 'claude-sonnet-5',
+            'nextStep': 'ConfigureBumpApi'
+        }
+
+    return nextStep
+
+def getBumpApiVersionFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GetApiVersionLink'
+    }
+
+    step = 'GetApiVersionLink'
+    stepType = 'copilot'
+    outputSavePath = os.path.join(attachmentPath, 'GetApiVersionLinkOutput.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Check if upstream Go Azure SDK with exact version of {dictConfig['resource']} exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager) according to [specification]({dictConfig['specification']}). Take note of link of API version directory if it exists."
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'outputSavePath': outputSavePath,
+        'model': 'claude-sonnet-5',
+        'nextStep': 'GetPathWithService'
+    }
+
+    step = 'GetPathWithService'
+    stepType = 'callFunction'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'package': 'utility',
+            'function': 'getFileWithService'
+        },
+        'nextStep': 'ConfigureBumpApi'
+    }
+
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureBumpApi', 'BumpApi', '')
 
     return dictStepConfig
 
@@ -1645,6 +1736,8 @@ def getFlow():
             dictStepConfig = getAttributeFlow()
         case 'customizeDiff':
             dictStepConfig = getCustomizeDiffFlow()
+        case 'bumpApiVersion':
+            dictStepConfig = getBumpApiVersionFlow()
 
     return dictStepConfig
 

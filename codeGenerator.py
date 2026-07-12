@@ -40,12 +40,12 @@ func (r Registration) Resources() []sdk.Resource {{
 }}
 
 func (r Registration) Name() string {{
-	return "{dictConfig['serviceName']}"
+	return "{dictConfig['clientServiceName']}"
 }}
 
 func (r Registration) WebsiteCategories() []string {{
 	return []string{{
-		"{dictConfig['serviceName']}",
+		"{dictConfig['clientServiceName']}",
 	}}
 }}
 
