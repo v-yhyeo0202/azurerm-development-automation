@@ -126,7 +126,7 @@ def generatePrContent():
 
 ## Description
 
-`azurerm_{dictConfig['resource']}` resource and list resource are added in this PR.
+`azurerm_{dictConfig['resource']}` resource are added in this PR.
 
 OpenAPI specification: {dictConfig['specification']}
 
@@ -136,14 +136,6 @@ Files to be reviewed:
 ```
 {file2Review}
 ```
-
-## Testing
-
-Version 4.0
-
-
-Version 5.0
-
 
 ## Change Log
 

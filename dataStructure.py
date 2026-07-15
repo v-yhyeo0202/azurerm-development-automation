@@ -52,8 +52,8 @@ class GetChangedResourceOutput(pydantic.BaseModel):
 class GetTestRegexOutput(pydantic.BaseModel):
     dictTestRegex: dict[str, str] = pydantic.Field(description = 'Dictionary of combined test name regular expression patterns, where key is service directory which contains the tests and value is the regular expression pattern')
 
-class GetApiVersionLinkOutput(pydantic.BaseModel):
-    apiVersionLink: str = pydantic.Field(description = 'Link of upstream Go SDK API version directory link, empty if does not exist')
+class GetPairablePropertyOutput(pydantic.BaseModel):
+    dictPairableProperty: dict[str, tuple[str, bool, list[str]]] = pydantic.Field(description = 'Dictionary of pairable properties, where key is property name and value is tuple containing property metadata. The first tuple value is property type, second tuple value is boolean which indicates whether property is `Required`, and third tuple value is list of possible property values according to `ValidateFunc` behavior')
 
 class HttpLog(pydantic.BaseModel):
     method: str

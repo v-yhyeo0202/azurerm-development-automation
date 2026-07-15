@@ -53,7 +53,7 @@ listTestRule = [
 ]
 testRule = f"Additional rules: {' '.join(listTestRule)}"
 
-def getAiAssistedDevelopment2PortalPropertyFlow():
+def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig = {
         'step': {},
         'firstStep': 'RemoveAiAssistedDevelopment'
@@ -273,7 +273,7 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). Do not run any Go command."
+                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) `resource-manager` package if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). Do not run any Go command."
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -281,7 +281,15 @@ def getAiAssistedDevelopment2PortalPropertyFlow():
         ],
         'model': 'claude-sonnet-5',
         'outputSavePath': outputSavePath,
-        'nextStep': 'GenerateSdkImport'
+        'nextStep': ''
+    }
+
+    return dictStepConfig
+
+def getSdkImport2PortalPropertyFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GenerateSdkImport'
     }
 
     step = 'GenerateSdkImport'
@@ -378,7 +386,8 @@ def getSchemaFlow():
         '6. Do not apply any behaviors except `Type` and `Elem` to all properties.',
         f'7. Apply [common schema]({commonSchemaPath}) to `resource_group_name`, `location`, `tags`, `identity`, and `zone` if they exist in attached file.',
         '8. Model structure name should contain `Model` suffix, not `ResourceModel` suffix.',
-        f'9. Add resource model to [service registration file]({registrationPath}).'
+        f"9. Return `azurerm_{dictConfig['resource']}` in `ResourceType` method.",
+        f'10. Add resource model to [service registration file]({registrationPath}).'
     ]
     listAttachmentPath = [
         os.path.join(attachmentPath, 'GetPortalPropertyOutput.json')
@@ -586,16 +595,30 @@ def getCrud2BasicTestFlow():
             }
         ],
         'model': 'claude-sonnet-5',
+        'nextStep': 'GetResourceList'
+    }
+
+    step = 'GetResourceList'
+    stepType = 'callFunction'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'package': 'utility',
+            'function': 'getResourceList'
+        },
         'nextStep': 'GenerateBasicTest'
     }
 
+
     step = 'GenerateBasicTest'
     stepType = 'copilot'
+    resourceListPath = os.path.join(attachmentPath, 'GetResourceListOutput.json')
     existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
     listRule = [
-        f"Refer to [specification]({dictConfig['specification']}) to understand the properties.",
-        f"Refer to existing tests in [*_resource_test.go]({existingTestPath}) for prerequisite resources to create {dictConfig['resource']} if applicable.",
-        'Refer to web for any relevant information.'
+        f'1. Refer to [list of resources to be created]({resourceListPath}).'
+        f"2. Refer to [specification]({dictConfig['specification']}) to understand the properties.",
+        f"3. Refer to existing tests in [*_resource_test.go]({existingTestPath}) for prerequisite resources to create {dictConfig['resource']} if applicable.",
+        '4. Refer to web for any relevant information.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -701,7 +724,7 @@ def configureRunCompleteTest(dictStepConfig):
 
     return nextStep
 
-def getRequiresImportCompleteTestFlow():
+def getOtherTestFlow():
     dictStepConfig = {
         'step': {},
         'firstStep': 'GenerateRequiresImportTest'
@@ -712,7 +735,7 @@ def getRequiresImportCompleteTestFlow():
         'type': 'copilot',
         'input': [
             {
-                'prompt': f"Generate `TestAcc{pascalCaseResource}_requiresImport` in [{testFile}]({testPath}) if have not done so. Refer to `basic` method to generate `requiresImport` method."
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_requiresImport` in [{testFile}]({testPath}) if have not done so. Refer to `basic` method to generate `requiresImport` method. `TestAcc{pascalCaseResource}_requiresImport` should be generated directly after `TestAcc{pascalCaseResource}_basic`."
             }
         ],
         'model': 'claude-sonnet-5',
@@ -724,7 +747,8 @@ def getRequiresImportCompleteTestFlow():
     listRule = [
         f'1. Use `TestAcc{pascalCaseResource}_basic` as reference.',
         f'2. `TestAcc{pascalCaseResource}_complete` should contain all properties from `Arguments` method in [{resourceFile}]({resourcePath}).'
-        f'3. For properties with `Default` behavior, set the properties to non-default value if possible.'
+        f'3. For properties with `Default` behavior, set the properties to non-default value if possible.',
+        f'4. The `TestAcc{pascalCaseResource}_complete` should be generated directly after `TestAcc{pascalCaseResource}_resquiresImport`.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -734,6 +758,25 @@ def getRequiresImportCompleteTestFlow():
             }
         ],
         'model': 'claude-opus-4.8',
+        'nextStep': 'GenerateUpdateTest'
+    }
+
+    step = 'GenerateUpdateTest'
+    stepType = 'copilot'
+    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
+    listRule = [
+        f'1. `TestAcc{pascalCaseResource}_update` should include `basic` and `complete` methods in sequence.',
+        f'2. Do not have to run `basic` method after `complete`.'
+        f'3. `TestAcc{pascalCaseResource}_update` should be generated directly after `TestAcc{pascalCaseResource}_complete`.',
+        f'4. Refer to existing `TestAcc*_update` in [*_resource_test.go]({existingTestPath}) if applicable.',
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate `TestAcc{pascalCaseResource}_update` in [{testFile}]({testPath}) if have not done so according to the rules: {' '.join(listRule)} {testRule}"
+            }
+        ],
         'nextStep': 'InitializeHttpProxyListener'
     }
 
@@ -1030,6 +1073,37 @@ def getForceNewFlow():
 
     return dictStepConfig
 
+def getPropertyPairFlow():
+    dictStepConfig = {
+        'step': {},
+        'firstStep': 'GetPairableProperty'
+    }
+
+    step = 'GetPairableProperty'
+    stepType = 'copilot'
+    listRule = [
+        '1. Property is not `TypeList` or `TypeSet` property with `Elem` containing `&schema.Resource` structure. Check its child properties instead.',
+        '2. Property is not one of the following root level properties: `name`, `resource_group_name`, `location`, `tags`.',
+        '3. If property has `ValidateFunc` behavior that lists the possible values, check the possible values.',
+        '4. Property name should be appended with its parent name recursively, separeted with `.`.'
+    ]
+    outputSavePath = os.path.join(attachmentPath, f'{step}.json')
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f'Check properties in [resource test file]({testPath}) according to the rules: {' '.join(listRule)} {checkPropertyRule}'
+            },
+            {
+                'prompt': outputFormatPrompt(_step = step)
+            }
+        ],
+        'model': 'claude-sonnet-5',
+        'outputSavePath': outputSavePath
+    }
+
+    return dictStepConfig
+
 def getRunParallelTestFlow():
     dictStepConfig = {
         'step': {},
@@ -1170,7 +1244,8 @@ def getPropertyName2ListResourceFlow():
     listRule = [
         f'1. `TestAcc{pascalCaseResource}_list_basic` test should consist of 3 `resource.TestStep` with `Config` `basicList`, `basicQuery`, and `basicQueryByResourceGroupName`.',
         f'2. Refer to [`basic` method]({testPath}) to generate `basicList` method.',
-        '3. In `basicQueryByResourceGroupName` method, use `azurerm_resource_group.test.name` as input for `resource_group_name` property.'
+        f'3. Use [`template` method]({testPath}) if possible.',
+        '4. In `basicQueryByResourceGroupName` method, use `azurerm_resource_group.test.name` as input for `resource_group_name` property.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -1195,12 +1270,13 @@ def getDocumentFlow():
     stepType = 'copilot'
     resourceDocumentPath = os.path.join(documentPath, 'r', f"{dictConfig['resource']}.html.markdown")
     listRule = [
-        f'1. Example usage configuration should be same as that returned by `basic` method in [{testFile}]({testPath}).',
-        '2. Use `example` as the resource names and `name` properties in example usage configuration.',
-        '3. For same resource in example usage configuration, use `example` appended with index for resource names and `name` properties.',
-        '4. Do not add information about `ValidateFunc` behavior.',
-        '5. Generate `Arguments` and `Attributes` descriptions according to corresponding property description in specification when applicable.',
-        f"6. In `Import` section, use command in the format `terraform import azurerm_{dictConfig['resource']}.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourceGroup1/providers/{{placeholder0}}/{{placeholder1}}/{{placeholder1}}1` with the placeholders replaced with correct value accordingly."
+        f"1. Use `{dictConfig['clientServiceName']}` as subcategory.",
+        f'2. Example usage configuration should be same as that returned by `basic` method in [{testFile}]({testPath}).',
+        '3. Use `example` as the resource names and `name` properties in example usage configuration.',
+        '4. For same resource in example usage configuration, use `example` appended with index for resource names and `name` properties.',
+        '5. Do not add information about `ValidateFunc` behavior.',
+        '6. Generate `Arguments` and `Attributes` descriptions according to corresponding property description in specification when applicable.',
+        f"7. In `Import` section, use command in the format `terraform import azurerm_{dictConfig['resource']}.example /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourceGroup1/providers/{{placeholder0}}/{{placeholder1}}/{{placeholder1}}1` with the placeholders replaced with correct value accordingly."
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -1397,8 +1473,9 @@ def getPrContent2TestRegexFlow():
         f"2. {os.path.join(dictConfig['path']['azurerm'], 'go.sum')}",
         f"3. {os.path.join(dictConfig['path']['azurerm'], 'vendor', '*')}",
         f"4. {os.path.join(dictConfig['path']['azurerm'], '.github', '*')}",
-        f"5. {os.path.join(servicePath, identityTestFile)}",
-        f"6. {os.path.join(servicePath, 'testdata', '*')}"
+        f"5. {os.path.join(dictConfig['path']['azurerm'], '.teamcity', 'components', 'generated', '*')}",
+        f"6. {os.path.join(servicePath, identityTestFile)}",
+        f"7. {os.path.join(servicePath, 'testdata', '*')}"
     ]
     outputSavePath = os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
     dictStepConfig['step'][step] = {
@@ -1625,72 +1702,35 @@ def getCustomizeDiffFlow():
 
     return dictStepConfig
 
-def configureBumpApi(dictStepConfig):
-    with open(os.path.join(attachmentPath, 'GetFileWithServiceOutput.json'), 'r') as f:
-        listFilePathWithService = json.load(f)['filePathWithService']
-
-    step = 'ConfigureBumpApi'
-    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listFilePathWithService))
-
-    if nextStep == 'BumpApi':
-        filePathWithService = listFilePathWithService[flowControl.dictIndex[step]]
-
-        with open(os.path.join(attachmentPath, 'GetApiVersionLinkOutput.json'), 'r') as f:
-            apiVersionLink = json.load(f)['apiVersionLink']
-
-        if not apiVersionLink:
-            apiVersionLink = os.path.join(dictConfig['path']['sdk'], 'resource-manager', dictConfig['sdkServiceName'])
-
-        stepType = 'copilot'
-        dictStepConfig['step'][nextStep] = {
-            'type': stepType,
-            'input': [
-                {
-                    'prompt': f'Change API version of `go-azure-sdk` package in [AzureRM repository file]({filePathWithService}) to latest one if the package is listed in [Go SDK repository]({apiVersionLink}). Do not run any Go command. Ignore any error if there is.'
-                }
-            ],
-            'model': 'claude-sonnet-5',
-            'nextStep': 'ConfigureBumpApi'
-        }
-
-    return nextStep
-
 def getBumpApiVersionFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GetApiVersionLink'
+        'firstStep': 'bumpApiVersion'
     }
 
-    step = 'GetApiVersionLink'
-    stepType = 'copilot'
-    outputSavePath = os.path.join(attachmentPath, 'GetApiVersionLinkOutput.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Check if upstream Go Azure SDK with exact version of {dictConfig['resource']} exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager) according to [specification]({dictConfig['specification']}). Take note of link of API version directory if it exists."
-            },
-            {
-                'prompt': outputFormatPrompt(_step = step)
-            }
-        ],
-        'outputSavePath': outputSavePath,
-        'model': 'claude-sonnet-5',
-        'nextStep': 'GetPathWithService'
-    }
-
-    step = 'GetPathWithService'
+    step = 'bumpApiVersion'
     stepType = 'callFunction'
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
             'package': 'utility',
-            'function': 'getFileWithService'
+            'function': 'bumpApiVersion'
         },
-        'nextStep': 'ConfigureBumpApi'
+        'nextStep': 'goModTidyVendor'
     }
 
-    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureBumpApi', 'BumpApi', '')
+    step = 'goModTidyVendor'
+    stepType = 'command'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'command': [
+                ['go', 'mod', 'tidy'],
+                ['go', 'mod', 'vendor']
+            ]
+        },
+        'nextStep': ''
+    }
 
     return dictStepConfig
 
@@ -1698,22 +1738,26 @@ def getFlow():
     dictStepConfig = None
 
     match dictConfig['flow']:
-        case 'aiAssistedDevelopment2PortalProperty':
-            dictStepConfig = getAiAssistedDevelopment2PortalPropertyFlow()
+        case 'aiAssistedDevelopment2ReplaceDirective':
+            dictStepConfig = getAiAssistedDevelopment2ReplaceDirectiveFlow()
+        case 'sdkImport2PortalProperty':
+            dictStepConfig = getSdkImport2PortalPropertyFlow()
         case 'schema':
             dictStepConfig = getSchemaFlow()
         case 'crud2BasicTest':
             dictStepConfig = getCrud2BasicTestFlow()
         case 'basicTest':
             dictStepConfig = getBasicTestFlow()
-        case 'requiresImportCompleteTest':
-            dictStepConfig = getRequiresImportCompleteTestFlow()
+        case 'otherTest':
+            dictStepConfig = getOtherTestFlow()
         case 'validateFunc':
             dictStepConfig = getValidateFuncFlow()
         case 'maxItems':
             dictStepConfig = getMaxItemsFlow()
         case 'forceNew':
             dictStepConfig = getForceNewFlow()
+        case 'propertyPair':
+            dictStepConfig = getPropertyPairFlow()
         case 'runParallelTest':
             dictStepConfig = getRunParallelTestFlow()
         case 'propertyName2ListResource':
