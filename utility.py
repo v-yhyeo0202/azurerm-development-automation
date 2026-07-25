@@ -7,6 +7,8 @@ import yaml
 with open('config.yml', 'r') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
+attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
+
 def bumpApiVersion(dictInput):
     sdkServicePath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk', 'resource-manager', dictConfig['sdkServiceName'])
     listPath = glob.glob(os.path.join(sdkServicePath, '*', '*'))
@@ -66,9 +68,83 @@ def getResourceList(dictInput):
             text = True
         ).stdout))
 
-    outputSavePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], 'GetResourceListOutput.json')
+    dictResource = {
+        'listResource': listResource
+    }
 
-    with open(outputSavePath, "w", encoding="utf-8") as f:
-        json.dump(listResource, f, indent=4, ensure_ascii=False)
+    with open(os.path.join(attachmentPath, 'GetResourceListOutput.json'), 'w', encoding = 'utf-8') as f:
+        json.dump(dictResource, f, indent = 4, ensure_ascii = False)
+
+    return
+
+'''
+def getMax3Element(listInput):
+    listOutput = listInput
+
+    if len(listInput) > 3:
+        middleIndex = len(listInput) // 2
+        listOutput = [listInput[0], listInput[middleIndex], listInput[-1]]
+
+    return listOutput
+'''
+
+def getMax2Element(listInput):
+    listOutput = listInput
+
+    if len(listInput) > 2:
+        listOutput = [listInput[0], listInput[-1]]
+
+    return listOutput
+
+def getPlanTimeCatchPropertyPair(dictInput):
+    with open(os.path.join(attachmentPath, 'GetPairablePropertyOutput.json'), 'r', encoding = 'utf-8') as f:
+        dictPairableProperty = json.load(f)['dictPairableProperty']
+
+    listPairableProperty = []
+
+    for pairableProperty, tupleMetadata in dictPairableProperty.items():
+        propertyType = tupleMetadata[0]
+        bRequired = tupleMetadata[1]
+        bDefault = tupleMetadata[2]
+        listPossibleValue = tupleMetadata[3]
+        
+        if (not bRequired and not bDefault) or (propertyType == 'TypeString' and len(listPossibleValue) > 1) or propertyType == 'TypeBool':
+            listPairableProperty.append(pairableProperty)
+
+    listAllPairedProperty = []
+
+    for i in range(len(listPairableProperty)):
+        property0 = listPairableProperty[i]
+        listPossibleValue0 = [None]
+        listPossibleValue = dictPairableProperty[property0][3]
+
+        if len(listPossibleValue) > 0:
+            listPossibleValue0 = getMax2Element(listPossibleValue)
+
+        for j in range(i + 1, len(listPairableProperty)):
+            property1 = listPairableProperty[j]
+            listPossibleValue1 = [None]
+            listPossibleValue = dictPairableProperty[property1][3]
+
+            if len(listPossibleValue) > 0:
+                listPossibleValue1 = getMax2Element(listPossibleValue)
+
+            for value0 in listPossibleValue0:
+                for value1 in listPossibleValue1:
+                    listAllPairedProperty.append(
+                        {
+                            'property0': property0,
+                            'value0': value0,
+                            'property1': property1,
+                            'value1': value1
+                        }
+                    )
+
+    dictPairedProperty = {
+        'listPlanTimeCatchPropertyPair': listAllPairedProperty
+    }
+
+    with open(os.path.join(attachmentPath, 'GetPlanTimeCatchPropertyPairOutput.json'), 'w', encoding = 'utf-8') as f:
+        json.dump(dictPairedProperty, f, indent = 4, ensure_ascii = False)
 
     return

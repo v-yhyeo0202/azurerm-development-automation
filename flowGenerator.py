@@ -36,11 +36,16 @@ maxItemsTestFile = f"{dictConfig['resource']}_resource_mi_test.go"
 maxItemsTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], maxItemsTestFile)
 forceNewTestFile = f"{dictConfig['resource']}_resource_fn_test.go"
 forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], forceNewTestFile)
+planTimeCatchTestFile = f"{dictConfig['resource']}_resource_ptc_test.go"
+planTimeCatchTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], planTimeCatchTestFile)
 listResourceFile = f"{dictConfig['resource']}_resource_list.go"
 listResourcePath = os.path.join(servicePath, listResourceFile)
 listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
 listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
 documentPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['document'])
+documentFile = f"{dictConfig['resource']}.html.markdown"
+resourceDocumentPath = os.path.join(documentPath, 'r', documentFile)
+dataSourceDocumentPath = os.path.join(documentPath, 'd', documentFile)
 
 listCheckPropertyRule = [
     '1. For properties with schema returned by methods, check the methods too. This applies recursively.'
@@ -51,7 +56,12 @@ listTestRule = [
     '1. Always use `Standard_F1als_v7` size when virtual machine is used.',
     '2. Do not run the test.'
 ]
-testRule = f"Additional rules: {' '.join(listTestRule)}"
+testRule = f"Additional test generation rules: {' '.join(listTestRule)}"
+
+listGeneralRule = [
+    '1. Do not run any Go command.'
+]
+generalRule = f"Additional general rules: {' '.join(listGeneralRule)}"
 
 def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig = {
@@ -273,7 +283,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) `resource-manager` package if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). Do not run any Go command."
+                'prompt': f"Add replace directive in [go.mod file]({goModPath}) for [local Go Azure SDK]({destinationSdkPath}) `resource-manager` package if have not done so. Now, SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). Check SDK package path of {dictConfig['resource']} to be imported according to [specification]({dictConfig['specification']}). {generalRule}"
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -1073,34 +1083,92 @@ def getForceNewFlow():
 
     return dictStepConfig
 
-def getPropertyPairFlow():
+def configureGeneratePlanTimeCatchTest(dictStepConfig):
+    step = 'ConfigureGeneratePlanTimeCatchTest'
+
+    with open(os.path.join(attachmentPath, 'GetPlanTimeCatchPropertyPairOutput.json'), 'r') as f:
+        listPropertyPair = json.load(f)['listPlanTimeCatchPropertyPair']
+
+    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listPropertyPair))
+
+    if nextStep == 'GeneratePlanTimeCatchTest':
+        index = flowControl.dictIndex[step]
+        dictPropertyPair = listPropertyPair[index]
+        shortProperty0 = dictPropertyPair['property0'].split('.')[-1]
+        shortProperty1 = dictPropertyPair['property1'].split('.')[-1]
+        testName = f"TestAcc{pascalCaseResource}_ptc_{shortProperty0}_{shortProperty1}_{index}"
+
+        listRule = [
+            f"1. Refer to [`TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}`]({testPath}) to generate the test.",
+            f"2. Add `{dictPropertyPair['property0']}` and `{dictPropertyPair['property1']}` properties in `azurerm_{dictConfig['resource']}` resource.",
+            '3. Other resources which the added properties in rule 2 depends on should be created.',
+            f"4. Do not add `Optional` property other than the properties listed in [`TestAcc{pascalCaseResource}_{dictConfig['referenceTest']}`]({testPath}) and the added properties in rule 2."
+        ]
+
+        ruleIndex = 5
+
+        if dictPropertyPair['value0']:
+            listRule.append(f"{ruleIndex}. `{dictPropertyPair['property0']}` property should have value `{dictPropertyPair['value0']}`.")
+            ruleIndex += 1
+
+        if dictPropertyPair['value1']:
+            listRule.append(f"{ruleIndex}. `{dictPropertyPair['property1']}` property should have value `{dictPropertyPair['value1']}`.")
+
+        dictStepConfig['step'][nextStep] = {
+            'type': 'copilot',
+            'input': [
+                {
+                    'prompt': f"Generate `{testName}` in [{planTimeCatchTestFile}]({planTimeCatchTestPath}) according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath})."
+                }
+            ],
+            'model': 'claude-sonnet-5',
+            'nextStep': 'ConfigureGeneratePlanTimeCatchTest'
+        }
+
+    return nextStep
+
+def getPlanTimeCatchFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GetPairableProperty'
+        'firstStep': 'ConfigureGeneratePlanTimeCatchTest'
     }
 
     step = 'GetPairableProperty'
     stepType = 'copilot'
     listRule = [
-        '1. Property is not `TypeList` or `TypeSet` property with `Elem` containing `&schema.Resource` structure. Check its child properties instead.',
-        '2. Property is not one of the following root level properties: `name`, `resource_group_name`, `location`, `tags`.',
+        '1. `TypeList` and `TypeSet` property with `Elem` containing `&schema.Resource` structure is not considered. Check its child properties instead.',
+        '2. Property which is one of the following root level properties is not considered: `name`, `resource_group_name`, `location`, `tags`.',
         '3. If property has `ValidateFunc` behavior that lists the possible values, check the possible values.',
         '4. Property name should be appended with its parent name recursively, separeted with `.`.'
     ]
-    outputSavePath = os.path.join(attachmentPath, f'{step}.json')
+    outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f'Check properties in [resource test file]({testPath}) according to the rules: {' '.join(listRule)} {checkPropertyRule}'
+                'prompt': f'Check properties in [resource file]({resourcePath}) according to the rules: {' '.join(listRule)} {checkPropertyRule}'
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
         'model': 'claude-sonnet-5',
-        'outputSavePath': outputSavePath
+        'outputSavePath': outputSavePath,
+        'nextStep': 'GetPairedProperty'
     }
+
+    step = 'GetPairedProperty'
+    stepType = 'callFunction'
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': {
+            'package': 'utility',
+            'function': 'getPlanTimeCatchPropertyPair',
+        },
+        'nextStep': 'ConfigureGeneratePlanTimeCatchTest'
+    }
+
+    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureGeneratePlanTimeCatchTest', 'GeneratePlanTimeCatchTest', '')
 
     return dictStepConfig
 
@@ -1268,7 +1336,6 @@ def getDocumentFlow():
 
     step = 'GenerateResourceDocument'
     stepType = 'copilot'
-    resourceDocumentPath = os.path.join(documentPath, 'r', f"{dictConfig['resource']}.html.markdown")
     listRule = [
         f"1. Use `{dictConfig['clientServiceName']}` as subcategory.",
         f'2. Example usage configuration should be same as that returned by `basic` method in [{testFile}]({testPath}).',
@@ -1636,17 +1703,73 @@ def getProperty2RequiredFlow():
 def getPropertyFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'GeneratePropertyManually'
+        'firstStep': 'AddPropertyInDocument'
     }
 
-    step = 'GeneratePropertyManually'
+    step = 'GenerateResourceProperty'
     stepType = 'copilot'
     generatedProperty = ', '.join([f'`{property}`' for property in dictConfig['generatedProperty']])
+    listRule = [
+        f'1. Properties should be added to `{pascalCaseResource}ResourceModel` structure in alphabetical order.',
+        f'2. Within `Create`, `Update`, and `Read` methods, place generated property codes according to property arrangement in `{pascalCaseResource}ResourceModel` structure.'
+    ]
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate {generatedProperty} properties to `Argument` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
+                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule)} {generalRule}"
+            }
+        ],
+        'model': 'claude-sonnet-5',
+        'nextStep': 'GenerateDataSourceProperty'
+    }
+
+    step = 'GenerateDataSourceProperty'
+    stepType = 'copilot'
+    dataSourceFile = f"{dictConfig['resource']}_data_source.go"
+    dataSourcePath = os.path.join(servicePath, dataSourceFile)
+    listRule = [
+        f'1. Properties should be added to `{pascalCaseResource}DataSourceModel` structure in alphabetical order.',
+        f'2. Within `Read` methods, place generated property codes according to property arrangement in `{pascalCaseResource}DataSourceModel` structure.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate {generatedProperty} properties to `Attributes` method in [{dataSourceFile}]({dataSourcePath}) according to [specification]({dictConfig['specification']}) if [{dataSourceFile}]({dataSourcePath}) exists. Edit {dataSourceFile} accordingly based on the rules: {' '.join(listRule)} {generalRule}"
+            }
+        ],
+        'model': 'claude-sonnet-5',
+        'nextStep': 'AddPropertyInCompleteTest'
+    }
+
+    step = 'AddPropertyInCompleteTest'
+    stepType = 'copilot'
+    dataSourceTestFile = f"{dictConfig['resource']}_data_source_test.go"
+    dataSourceTestPath = os.path.join(servicePath, dataSourceTestFile)
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f'Add {generatedProperty} in [`TestAcc{pascalCaseResource}_complete`]({testPath}) and [`TestAcc{pascalCaseResource}DataSource_complete`]({dataSourceTestPath}) if [{dataSourceTestFile}]({dataSourceTestPath}) exists. The property values used in [`TestAcc{pascalCaseResource}_complete`]({testPath}) should not be `Default` values. {generalRule}'
+            }
+        ],
+        'model': 'claude-sonnet-5',
+        'nextStep': 'AddPropertyInDocument'
+    }
+
+    step = 'AddPropertyInDocument'
+    stepType = 'copilot'
+    listRule = [
+        '1. Generate `Arguments` and `Attributes` descriptions according to corresponding property description in specification when applicable.',
+        '2. If property is a parent containing both `Computed` and non `Computed` child properties, list the parent property under both `Arguments` (contain non `Computed` property) and `Attributes` (contain `Computed` property) sections.',
+        '3. Do not add property in `Example Usage` section.'
+    ]
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Add {generatedProperty} in [resource {documentFile}]({resourceDocumentPath}) and [data source {documentFile}]({dataSourceDocumentPath}) according to [{resourceFile}]({resourcePath}) [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
             }
         ],
         'model': 'claude-sonnet-5',
@@ -1756,8 +1879,8 @@ def getFlow():
             dictStepConfig = getMaxItemsFlow()
         case 'forceNew':
             dictStepConfig = getForceNewFlow()
-        case 'propertyPair':
-            dictStepConfig = getPropertyPairFlow()
+        case 'planTimeCatch':
+            dictStepConfig = getPlanTimeCatchFlow()
         case 'runParallelTest':
             dictStepConfig = getRunParallelTestFlow()
         case 'propertyName2ListResource':

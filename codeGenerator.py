@@ -130,7 +130,8 @@ def generatePrContent():
 
 OpenAPI specification: {dictConfig['specification']}
 
-Documentation: {documentationLink}
+Documentation:
+* {documentationLink}
 
 Files to be reviewed:
 ```

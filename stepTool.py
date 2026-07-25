@@ -36,7 +36,7 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
         ) as client:
             async with await client.create_session(
                 model = _model,
-                reasoning_effort = None if _model == 'claude-haiku-4.5' else 'Extra High',
+                reasoning_effort = None if _model == 'claude-haiku-4.5' else 'High',
                 on_permission_request = copilot.session.PermissionHandler.approve_all,
                 streaming = True
             ) as session:

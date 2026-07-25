@@ -7,7 +7,7 @@ path:
   terracorder: '/home/v-yyeo/terracorder'
   # Change below
   azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
-  services: 'internal/services/communication'
+  services: 'internal/services/storagecache'
   # Change above
   document: 'website/docs'
   pandora: '/home/v-yyeo/pandora'
@@ -15,13 +15,13 @@ path:
   locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
 
 defaultModel: 'claude-haiku-4.5'
-resource: 'communication_service'
+resource: 'managed_lustre_file_system'
 clientResource: ''
-specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/communication/resource-manager/Microsoft.Communication/stable/2026-03-18/openapi.json'
-clientServiceName: 'Communication'
+specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/storagecache/resource-manager/Microsoft.StorageCache/StorageCache/stable/2024-07-01/storagecache.json'
+clientServiceName: 'AzureManagedLustreFileSystem'
 pandoraService: ''
-pandoraServiceName: 'Communication'
-sdkServiceName: 'communication'
+pandoraServiceName: 'StorageCache'
+sdkServiceName: 'storagecache'
 resourceGroupName: 'rg-yyeo-0'
 nHttpProxy: 2
 port:
@@ -55,7 +55,7 @@ port:
 # Check if `MaxItems` is applied correctly
 # forceNew
 # Check if `ForceNew` is applied correctly
-# propertyPair
+# planTimeCatch
 # Check if plan-time catch is needed
 # runParallelTest
 # Codes according to test results
@@ -77,10 +77,10 @@ port:
 # attribute
 # customizeDiff
 # bumpApiVersion
-flow: 'bumpApiVersion'
+flow: 'planTimeCatch'
 
-# validateFunc maxItems forceNew
-referenceTest: 'translateRequiredQueryParametersDefault' # complete
+# validateFunc maxItems forceNew planTimeCatch
+referenceTest: 'basic' # complete
 generatedTestProperty:
   - 'translate_required_query_parameters'
 
@@ -104,7 +104,7 @@ requiredProperty:
 
 # property
 generatedProperty:
-  - ''
+  - 'identity'
 
 # attribute
 generatedAttribute:
