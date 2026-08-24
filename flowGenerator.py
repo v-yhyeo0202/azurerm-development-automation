@@ -1,7 +1,6 @@
 import functools
 import json
 import os
-import re
 import yaml
 
 import flowControl
@@ -159,12 +158,12 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'sdkExist': {
-                'existLocally': 'EditResourceClient',
-                'existInRepo': 'GenerateSdkImport',
+                'existLocally': '',
+                'existInRepo': '',
                 'notExist': 'UpdatePandora'
             }
         }
@@ -370,7 +369,7 @@ def getSdkImport2PortalPropertyFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -434,7 +433,7 @@ def getSchemaFlow():
                 'prompt': f"Generate behaviors to properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': 'FlattenProperty'
     }
 
@@ -443,7 +442,7 @@ def getSchemaFlow():
     listRule = [
         '1. `TypeList` or `TypeSet` parent property that contains only 1 child property.',
         '2. `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.',
-        f"3. `TypeList` `Required` parent property that has `MaxItem` as `1`.",
+        '3. `TypeList` `Required` parent property that has `MaxItem` as `1`.'
     ]
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -493,7 +492,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': 'GenerateUpdate'
     }
 
@@ -525,7 +524,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': 'GenerateRead'
     }
 
@@ -552,7 +551,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': 'GenerateDelete'
     }
 
@@ -637,7 +636,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties according to the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': ''
     }
 
@@ -716,7 +715,7 @@ def getBasicTestFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'bPass': {
@@ -767,7 +766,7 @@ def getOtherTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}) if have not done so according to the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': 'GenerateUpdateTest'
     }
 
@@ -817,7 +816,7 @@ def getOtherTestFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'bPass': {
@@ -862,7 +861,7 @@ def configureGenerateValidateFuncTest(dictStepConfig):
         dictStepConfig['step'][nextStep] = {
             'type': 'copilot',
             'input': listInput,
-            'model': 'claude-opus-4.8',
+            'model': 'claude-opus-5',
             'nextStep': 'ConfigureGenerateValidateFuncTest'
         }
 
@@ -918,7 +917,7 @@ def configureGenerateMaxItemsTest(dictStepConfig):
                     'prompt': f"Generate `{testName}` in [{maxItemsTestFile}]({maxItemsTestPath}) which contains `{propertyName}` property with 64 elements if have not done so according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
-            'model': 'claude-opus-4.8',
+            'model': 'claude-opus-5',
             'nextStep': 'ConfigureGenerateMaxItemsTest'
         }
 
@@ -1043,7 +1042,7 @@ def configureGenerateForceNewTest(dictStepConfig):
                     'prompt': f"Generate `{testName}` in [{forceNewTestFile}]({forceNewTestPath}) which updates only `{propertyName}` property if not not done so with the steps: {' '.join(listStep)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
-            'model': 'claude-opus-4.8',
+            'model': 'claude-opus-5',
             'nextStep': 'ConfigureGenerateForceNewTest'
         }
 
@@ -1222,7 +1221,7 @@ def getPropertyName2ListResourceFlow():
                     'prompt': f"Change property names from {changedPropertyName} in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}). Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
                 }
             ],
-            'model': 'claude-opus-4.8',
+            'model': 'claude-opus-5',
             'nextStep': 'RearrangeSchemaProperty'
         }
 
@@ -1322,7 +1321,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) to test list resource if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-4.8',
+        'model': 'claude-opus-5',
         'nextStep': ''
     }
 
@@ -1703,25 +1702,50 @@ def getProperty2RequiredFlow():
 def getPropertyFlow():
     dictStepConfig = {
         'step': {},
-        'firstStep': 'AddPropertyInDocument'
+        'firstStep': 'GenerateResourceProperty'
     }
 
     step = 'GenerateResourceProperty'
     stepType = 'copilot'
     generatedProperty = ', '.join([f'`{property}`' for property in dictConfig['generatedProperty']])
-    listRule = [
+    listRule0 = [
         f'1. Properties should be added to `{pascalCaseResource}ResourceModel` structure in alphabetical order.',
         f'2. Within `Create`, `Update`, and `Read` methods, place generated property codes according to property arrangement in `{pascalCaseResource}ResourceModel` structure.'
     ]
+
+    updatePath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method*update.go')
+    validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
+    listRule1 = [
+        '1. Apply `Required` behavior to the added properties according to specification. Otherwise, apply `Optional` behavior.',
+        f'2. Apply `ForceNew` behavior to the added properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
+        f'3. Apply `ValidateFunc` behavior to the added ID properties using [Go Azure SDK validation methods]({vendorSdkPath}).',
+        f'4. Apply `ValidateFunc` behavior to the added `TypeString` properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
+        f'5. Add comment above the added `TypeString` properties suggesting suitable `ValidateFunc` method from [validation package]({validationPath}).',
+        '6. Do not apply `Sensitive` behaviors.',
+        '7. Apply `MaxItems: 1` to the added `TypeList` property that corresponds to specification parent properties which are not `array` type.'
+    ]
+
+    listRule2 = [
+        '1. Added `TypeList` or `TypeSet` parent property that contains only 1 child property.',
+        '2. Added `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.',
+        '3. Added `TypeList` `Required` parent property that has `MaxItem` as `1`.'
+    ]
+
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
             {
-                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule)} {generalRule}"
+                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule0)} {generalRule}"
+            },
+            {
+                'prompt': f"Generate behaviors to the added properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule1)}"
+            },
+            {
+                'prompt': f"Flatten the added child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule2)}"
             }
         ],
         'model': 'claude-sonnet-5',
-        'nextStep': 'GenerateDataSourceProperty'
+        'nextStep': ''
     }
 
     step = 'GenerateDataSourceProperty'

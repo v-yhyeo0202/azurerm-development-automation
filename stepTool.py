@@ -7,6 +7,7 @@ import langchain_core.language_models
 import os
 import re
 import subprocess
+import time
 import yaml
 
 import codeGenerator
@@ -30,13 +31,12 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
         self.generation = ''
 
         async with copilot.CopilotClient(
-            copilot.SubprocessConfig(
-                cwd = dictConfig['path']['azurerm']
-            )
+            base_directory = dictConfig['path']['azurerm'],
+            github_token = os.environ['GITHUB_TOKEN']
         ) as client:
             async with await client.create_session(
                 model = _model,
-                reasoning_effort = None if _model == 'claude-haiku-4.5' else 'High',
+                reasoning_effort = None if _model == 'claude-haiku-4.5' else 'high',
                 on_permission_request = copilot.session.PermissionHandler.approve_all,
                 streaming = True
             ) as session:
@@ -45,6 +45,7 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
                 def onEvent(event):
                     match event.data:
                         case copilot.generated.session_events.AssistantMessageDeltaData() | copilot.generated.session_events.AssistantReasoningDeltaData() as data:
+                            bIdleData = False
                             delta = data.delta_content or ''
                             print(delta, end = '', flush = True)
 
