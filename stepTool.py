@@ -32,7 +32,7 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
 
         async with copilot.CopilotClient(
             base_directory = dictConfig['path']['azurerm'],
-            github_token = os.environ['GITHUB_TOKEN']
+            github_token = os.environ['COPILOT_GITHUB_TOKEN']
         ) as client:
             async with await client.create_session(
                 model = _model,
@@ -45,7 +45,6 @@ class CopilotModel(langchain_core.language_models.chat_models.BaseChatModel):
                 def onEvent(event):
                     match event.data:
                         case copilot.generated.session_events.AssistantMessageDeltaData() | copilot.generated.session_events.AssistantReasoningDeltaData() as data:
-                            bIdleData = False
                             delta = data.delta_content or ''
                             print(delta, end = '', flush = True)
 

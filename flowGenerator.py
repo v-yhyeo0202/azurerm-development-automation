@@ -158,7 +158,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'sdkExist': {
@@ -288,7 +288,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -341,7 +341,7 @@ def getSdkImport2PortalPropertyFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GetPortalProperty'
     }
 
@@ -369,7 +369,7 @@ def getSdkImport2PortalPropertyFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -409,7 +409,7 @@ def getSchemaFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GenerateBehavior'
     }
 
@@ -433,7 +433,7 @@ def getSchemaFlow():
                 'prompt': f"Generate behaviors to properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': 'FlattenProperty'
     }
 
@@ -451,7 +451,7 @@ def getSchemaFlow():
                 'prompt': f"Flatten child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 
@@ -492,7 +492,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': 'GenerateUpdate'
     }
 
@@ -524,7 +524,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': 'GenerateRead'
     }
 
@@ -551,7 +551,7 @@ def getCrud2BasicTestFlow():
                 'attachments': listAttachmentPath
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': 'GenerateDelete'
     }
 
@@ -590,7 +590,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Generate resource identity in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'RefactorFlatten'
     }
 
@@ -603,7 +603,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Wrap part of `Read` method in [{resourceFile}]({resourcePath}) from `state` initialization to `metadata.Encode` method (inclusive) in a separate `flatten` method. The `flatten` method should be located directly after `IDValidationFunc` method."
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GetResourceList'
     }
 
@@ -636,7 +636,7 @@ def getCrud2BasicTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_basic` in [{testFile}]({testPath}). The test should create {dictConfig['resource']} with only `Required` properties according to the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': ''
     }
 
@@ -715,7 +715,7 @@ def getBasicTestFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'bPass': {
@@ -747,7 +747,7 @@ def getOtherTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_requiresImport` in [{testFile}]({testPath}) if have not done so. Refer to `basic` method to generate `requiresImport` method. `TestAcc{pascalCaseResource}_requiresImport` should be generated directly after `TestAcc{pascalCaseResource}_basic`."
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GenerateCompleteTest'
     }
 
@@ -766,7 +766,7 @@ def getOtherTestFlow():
                 'prompt': f"Generate `TestAcc{pascalCaseResource}_complete` in [{testFile}]({testPath}) if have not done so according to the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': 'GenerateUpdateTest'
     }
 
@@ -816,7 +816,7 @@ def getOtherTestFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': {
             'bPass': {
@@ -861,7 +861,7 @@ def configureGenerateValidateFuncTest(dictStepConfig):
         dictStepConfig['step'][nextStep] = {
             'type': 'copilot',
             'input': listInput,
-            'model': 'claude-opus-5',
+            'model': 'claude-opus-5.5',
             'nextStep': 'ConfigureGenerateValidateFuncTest'
         }
 
@@ -917,7 +917,7 @@ def configureGenerateMaxItemsTest(dictStepConfig):
                     'prompt': f"Generate `{testName}` in [{maxItemsTestFile}]({maxItemsTestPath}) which contains `{propertyName}` property with 64 elements if have not done so according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
-            'model': 'claude-opus-5',
+            'model': 'claude-opus-5.5',
             'nextStep': 'ConfigureGenerateMaxItemsTest'
         }
 
@@ -1042,7 +1042,7 @@ def configureGenerateForceNewTest(dictStepConfig):
                     'prompt': f"Generate `{testName}` in [{forceNewTestFile}]({forceNewTestPath}) which updates only `{propertyName}` property if not not done so with the steps: {' '.join(listStep)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
-            'model': 'claude-opus-5',
+            'model': 'claude-opus-5.5',
             'nextStep': 'ConfigureGenerateForceNewTest'
         }
 
@@ -1073,7 +1073,7 @@ def getForceNewFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': 'ConfigureGenerateForceNewTest'
     }
@@ -1120,7 +1120,7 @@ def configureGeneratePlanTimeCatchTest(dictStepConfig):
                     'prompt': f"Generate `{testName}` in [{planTimeCatchTestFile}]({planTimeCatchTestPath}) according to the rules: {' '.join(listRule)} {testRule} Do not change [{testFile}]({testPath})."
                 }
             ],
-            'model': 'claude-sonnet-5',
+            'model': 'claude-sonnet-5.5',
             'nextStep': 'ConfigureGeneratePlanTimeCatchTest'
         }
 
@@ -1151,7 +1151,7 @@ def getPlanTimeCatchFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GetPairedProperty'
     }
@@ -1221,7 +1221,7 @@ def getPropertyName2ListResourceFlow():
                     'prompt': f"Change property names from {changedPropertyName} in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}). Edit [{resourceFile}]({resourcePath}) and [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
                 }
             ],
-            'model': 'claude-opus-5',
+            'model': 'claude-opus-5.5',
             'nextStep': 'RearrangeSchemaProperty'
         }
 
@@ -1240,7 +1240,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties in `Arguments` and `Attributes` methods in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'RearrangeStructureProperty'
     }
 
@@ -1258,7 +1258,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties of `{pascalCaseResource}Model` structure in [{resourceFile}]({resourcePath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'RearrangeTestProperty'
     }
 
@@ -1280,7 +1280,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Rearrange properties of all resources in [{testFile}]({testPath}) according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GenerateListResource'
     }
 
@@ -1302,7 +1302,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Check if there are [`ListBy*` methods]({listPath}) for {dictConfig['resource']}. If there is, generate [{listResourceFile}]({listResourcePath}) if have not done so according to the `ListBy*` methods and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GenerateListResourceTest'
     }
 
@@ -1321,7 +1321,7 @@ def getPropertyName2ListResourceFlow():
                 'prompt': f"Generate [{listResourceTestFile}]({listResourceTestPath}) to test list resource if have not done so according to [{listResourceFile}]({listResourcePath}) and the rules: {' '.join(listRule)} {testRule}"
             }
         ],
-        'model': 'claude-opus-5',
+        'model': 'claude-opus-5.5',
         'nextStep': ''
     }
 
@@ -1351,7 +1351,7 @@ def getDocumentFlow():
                 'prompt': f"Generate [document for `{dictConfig['resource']}` resource]({resourceDocumentPath}) according to [{resourceFile}]({resourcePath}), [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'GenerateListResourceDocument'
     }
 
@@ -1466,7 +1466,7 @@ def getFixCommandFlow():
                     'prompt': outputFormatPrompt(_step = f'Evaluate{step}')
                 }
             ],
-            'model': 'claude-sonnet-5',
+            'model': 'claude-sonnet-5.5',
             'nextStep': {
                 'bChange': {
                     True: f'Configure{step}',
@@ -1526,7 +1526,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GetFile2Review'
     }
@@ -1554,7 +1554,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': 'GeneratePrContent'
     }
@@ -1612,7 +1612,7 @@ def getPrContent2TestRegexFlow():
                 'prompt': outputFormatPrompt(_step = step)
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'outputSavePath': outputSavePath,
         'nextStep': ''
     }
@@ -1672,7 +1672,7 @@ def getFlattenPropertyFlow():
                 'prompt': f"Flatten all child properties under `{dictConfig['flattenParentProperty']}` parent property in `Arguments` and `Attributes` methods of [{resourceFile}]({resourcePath}) if necessary according to the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 
@@ -1730,7 +1730,7 @@ def getPropertyFlow():
         '2. Added `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.',
         '3. Added `TypeList` `Required` parent property that has `MaxItem` as `1`.'
     ]
-
+    '''
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
@@ -1744,7 +1744,18 @@ def getPropertyFlow():
                 'prompt': f"Flatten the added child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule2)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
+        'nextStep': ''
+    }
+    '''
+    dictStepConfig['step'][step] = {
+        'type': stepType,
+        'input': [
+            {
+                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule0)} {generalRule}"
+            }
+        ],
+        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 
@@ -1763,7 +1774,7 @@ def getPropertyFlow():
                 'prompt': f"Generate {generatedProperty} properties to `Attributes` method in [{dataSourceFile}]({dataSourcePath}) according to [specification]({dictConfig['specification']}) if [{dataSourceFile}]({dataSourcePath}) exists. Edit {dataSourceFile} accordingly based on the rules: {' '.join(listRule)} {generalRule}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'AddPropertyInCompleteTest'
     }
 
@@ -1778,7 +1789,7 @@ def getPropertyFlow():
                 'prompt': f'Add {generatedProperty} in [`TestAcc{pascalCaseResource}_complete`]({testPath}) and [`TestAcc{pascalCaseResource}DataSource_complete`]({dataSourceTestPath}) if [{dataSourceTestFile}]({dataSourceTestPath}) exists. The property values used in [`TestAcc{pascalCaseResource}_complete`]({testPath}) should not be `Default` values. {generalRule}'
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': 'AddPropertyInDocument'
     }
 
@@ -1796,7 +1807,7 @@ def getPropertyFlow():
                 'prompt': f"Add {generatedProperty} in [resource {documentFile}]({resourceDocumentPath}) and [data source {documentFile}]({dataSourceDocumentPath}) according to [{resourceFile}]({resourcePath}) [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 
@@ -1818,7 +1829,7 @@ def getAttributeFlow():
                 'prompt': f"Generate {generatedAttribute} properties to `Attributes` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly."
             }
         ],
-        'model': 'claude-sonnet-5',
+        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 

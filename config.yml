@@ -5,23 +5,21 @@ path:
   home: '/home/v-yyeo/'
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
   terracorder: '/home/v-yyeo/terracorder'
-  # Change below
-  azurerm: '/home/v-yyeo/terraform-provider-azurerm-0/terraform-provider-azurerm'
-  services: 'internal/services/storage'
-  # Change above
+  azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
+  services: 'internal/services/manageddevopspools'
   document: 'website/docs'
-  pandora: '/home/v-yyeo/pandora'
+  pandora: '/home/v-yyeo/pandora-0/pandora'
   sdk: '/home/v-yyeo/go-azure-sdk'
   locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
 
 defaultModel: 'claude-haiku-4.5'
-resource: 'storage_account'
+resource: 'managed_devops_pool'
 clientResource: ''
-specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/storage/resource-manager/Microsoft.Storage/stable/2025-08-01/openapi.json'
-clientServiceName: 'ResourceManager'
+specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/devopsinfrastructure/resource-manager/Microsoft.DevOpsInfrastructure/DevOpsInfrastructure/stable/2026-06-02/devopsinfrastructure.json'
+clientServiceName: 'Pools'
 pandoraService: ''
-pandoraServiceName: 'Storage'
-sdkServiceName: 'storage'
+pandoraServiceName: 'DevOpsInfrastructure'
+sdkServiceName: 'devopsinfrastructure'
 resourceGroupName: 'rg-yyeo-0'
 nHttpProxy: 2
 port:
@@ -77,7 +75,7 @@ port:
 # attribute
 # customizeDiff
 # bumpApiVersion
-flow: 'property'
+flow: 'bumpApiVersion'
 
 # validateFunc maxItems forceNew planTimeCatch
 referenceTest: 'basic' # complete
@@ -104,7 +102,6 @@ requiredProperty:
 
 # property
 generatedProperty:
-  - 'NfsSetting.EncryptionInTransit'
   - 'SmbSetting.EncryptionInTransit'
 
 # attribute
