@@ -1,11 +1,9 @@
 [submodule "pandora"]
 	path = pandora
 	url = https://github.com/hashicorp/pandora
-
 [submodule "go-azure-sdk"]
 	path = go-azure-sdk
 	url = https://github.com/hashicorp/go-azure-sdk
-
 [submodule "terraform-provider-azurerm"]
 	path = terraform-provider-azurerm
 	url = https://github.com/hashicorp/terraform-provider-azurerm

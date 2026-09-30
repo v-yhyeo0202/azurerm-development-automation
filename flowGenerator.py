@@ -1477,31 +1477,6 @@ def getFixCommandFlow():
 
     return dictStepConfig
 
-def configureRunTerracorder(dictStepConfig):
-    step = 'ConfigureRunTerracorder'
-
-    with open(os.path.join(attachmentPath, 'GetChangedResourceOutput.json'), 'r') as f:
-        listResource = json.load(f)['listChangedResource']
-
-    nextStep = flowControl.generateIndex(dictStepConfig['step'][step], step, len(listResource))
-
-    if nextStep == 'RunTerracorder':
-        resource = listResource[flowControl.dictIndex[step]]
-        outputSavePath = os.path.join(attachmentPath, f'RunTerracorderOutput_{resource}.json')
-        dictStepConfig['step']['RunTerracorder'] = {
-            'type': 'command',
-            'input': {
-                'cwd': dictConfig['path']['terracorder'],
-                'command': [
-                    ['pwsh', './scripts/terracorder.ps1', '-ResourceName', resource, '-RepositoryDirectory', dictConfig['path']['azurerm']]
-                ]
-            },
-            'outputSavePath': outputSavePath,
-            'nextStep': 'ConfigureRunTerracorder'
-        }
-
-    return nextStep
-
 def getPrContent2TestRegexFlow():
     dictStepConfig = {
         'step': {},
@@ -1568,52 +1543,6 @@ def getPrContent2TestRegexFlow():
             'overwrite': True,
             'path': prContentPath
         },
-        'nextStep': 'GetChangedResource'
-    }
-
-    step = 'GetChangedResource'
-    stepType = 'copilot'
-    mainServicePath = os.path.join(dictConfig['path']['azurerm'], 'internal', 'services')
-    listAttachmentPath = [
-        os.path.join(attachmentPath, 'GetFile2ReviewOutput.json')
-    ]
-    outputSavePath = os.path.join(attachmentPath, 'GetChangedResourceOutput.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f'List the changed resources based on the attached files. Only the resources with corresponding files changed in `{mainServicePath}` should be listed. Resource names should be listed in the format of `azurerm_{{resource name}}`.',
-                'attachments': listAttachmentPath
-            },
-            {
-                'prompt': outputFormatPrompt(_step = step)
-            }
-        ],
-        'outputSavePath': outputSavePath,
-        'nextStep': 'ConfigureRunTerracorder'
-    }
-
-    stepWrapper.addControlFlow(dictStepConfig, 'ConfigureRunTerracorder', 'RunTerracorder', 'GetTestRegex')
-
-    step = 'GetTestRegex'
-    stepType = 'copilot'
-    listAttachmentPath = [
-        os.path.join(attachmentPath, 'RunTerracorderOutput*.json')
-    ]
-    outputSavePath = os.path.join(attachmentPath, 'GetTestRegexOutput.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Combine the test name regular expression patterns listed in the attached files into one.",
-                'attachments': listAttachmentPath
-            },
-            {
-                'prompt': outputFormatPrompt(_step = step)
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'outputSavePath': outputSavePath,
         'nextStep': ''
     }
 
@@ -1694,142 +1623,6 @@ def getProperty2RequiredFlow():
                 'prompt': f"Change {requiredProperty} properties behavior to `Required` in [{resourceFile}]({resourcePath}). Edit {resourceFile} and [{testFile}]({testPath}) accordingly."
             }
         ],
-        'nextStep': ''
-    }
-
-    return dictStepConfig
-
-def getPropertyFlow():
-    dictStepConfig = {
-        'step': {},
-        'firstStep': 'GenerateResourceProperty'
-    }
-
-    step = 'GenerateResourceProperty'
-    stepType = 'copilot'
-    generatedProperty = ', '.join([f'`{property}`' for property in dictConfig['generatedProperty']])
-    listRule0 = [
-        f'1. Properties should be added to `{pascalCaseResource}ResourceModel` structure in alphabetical order.',
-        f'2. Within `Create`, `Update`, and `Read` methods, place generated property codes according to property arrangement in `{pascalCaseResource}ResourceModel` structure.'
-    ]
-
-    updatePath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method*update.go')
-    validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
-    listRule1 = [
-        '1. Apply `Required` behavior to the added properties according to specification. Otherwise, apply `Optional` behavior.',
-        f'2. Apply `ForceNew` behavior to the added properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
-        f'3. Apply `ValidateFunc` behavior to the added ID properties using [Go Azure SDK validation methods]({vendorSdkPath}).',
-        f'4. Apply `ValidateFunc` behavior to the added `TypeString` properties which have `enum` field in specification using `validation.StringInSlice` method with [possible value slice method from Go Azure SDK]({vendorSdkPath}).',
-        f'5. Add comment above the added `TypeString` properties suggesting suitable `ValidateFunc` method from [validation package]({validationPath}).',
-        '6. Do not apply `Sensitive` behaviors.',
-        '7. Apply `MaxItems: 1` to the added `TypeList` property that corresponds to specification parent properties which are not `array` type.'
-    ]
-
-    listRule2 = [
-        '1. Added `TypeList` or `TypeSet` parent property that contains only 1 child property.',
-        '2. Added `TypeList` parent property that has `MaxItem` as `1` and less than 3 child properties.',
-        '3. Added `TypeList` `Required` parent property that has `MaxItem` as `1`.'
-    ]
-    '''
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule0)} {generalRule}"
-            },
-            {
-                'prompt': f"Generate behaviors to the added properties in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}) and the rules: {' '.join(listRule1)}"
-            },
-            {
-                'prompt': f"Flatten the added child properties in schema of [{resourceFile}]({resourcePath}) if necessary. If the flattened child property name is same as any existing resource name, append the child property name to that of parent. These apply recursively to: {' '.join(listRule2)}"
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'nextStep': ''
-    }
-    '''
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate {generatedProperty} properties to `Arguments` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly based on the rules: {' '.join(listRule0)} {generalRule}"
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'nextStep': ''
-    }
-
-    step = 'GenerateDataSourceProperty'
-    stepType = 'copilot'
-    dataSourceFile = f"{dictConfig['resource']}_data_source.go"
-    dataSourcePath = os.path.join(servicePath, dataSourceFile)
-    listRule = [
-        f'1. Properties should be added to `{pascalCaseResource}DataSourceModel` structure in alphabetical order.',
-        f'2. Within `Read` methods, place generated property codes according to property arrangement in `{pascalCaseResource}DataSourceModel` structure.'
-    ]
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate {generatedProperty} properties to `Attributes` method in [{dataSourceFile}]({dataSourcePath}) according to [specification]({dictConfig['specification']}) if [{dataSourceFile}]({dataSourcePath}) exists. Edit {dataSourceFile} accordingly based on the rules: {' '.join(listRule)} {generalRule}"
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'nextStep': 'AddPropertyInCompleteTest'
-    }
-
-    step = 'AddPropertyInCompleteTest'
-    stepType = 'copilot'
-    dataSourceTestFile = f"{dictConfig['resource']}_data_source_test.go"
-    dataSourceTestPath = os.path.join(servicePath, dataSourceTestFile)
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f'Add {generatedProperty} in [`TestAcc{pascalCaseResource}_complete`]({testPath}) and [`TestAcc{pascalCaseResource}DataSource_complete`]({dataSourceTestPath}) if [{dataSourceTestFile}]({dataSourceTestPath}) exists. The property values used in [`TestAcc{pascalCaseResource}_complete`]({testPath}) should not be `Default` values. {generalRule}'
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'nextStep': 'AddPropertyInDocument'
-    }
-
-    step = 'AddPropertyInDocument'
-    stepType = 'copilot'
-    listRule = [
-        '1. Generate `Arguments` and `Attributes` descriptions according to corresponding property description in specification when applicable.',
-        '2. If property is a parent containing both `Computed` and non `Computed` child properties, list the parent property under both `Arguments` (contain non `Computed` property) and `Attributes` (contain `Computed` property) sections.',
-        '3. Do not add property in `Example Usage` section.'
-    ]
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Add {generatedProperty} in [resource {documentFile}]({resourceDocumentPath}) and [data source {documentFile}]({dataSourceDocumentPath}) according to [{resourceFile}]({resourcePath}) [specification]({dictConfig['specification']}), and the rules: {' '.join(listRule)}"
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
-        'nextStep': ''
-    }
-
-    return dictStepConfig
-
-def getAttributeFlow():
-    dictStepConfig = {
-        'step': {},
-        'firstStep': 'GenerateAttributeManually'
-    }
-
-    step = 'GenerateAttributeManually'
-    stepType = 'copilot'
-    generatedAttribute = ', '.join([f'`{attribute}`' for attribute in dictConfig['generatedAttribute']])
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': [
-            {
-                'prompt': f"Generate {generatedAttribute} properties to `Attributes` method in [{resourceFile}]({resourcePath}) according to [specification]({dictConfig['specification']}). Edit {resourceFile} accordingly."
-            }
-        ],
-        'model': 'claude-sonnet-5.5',
         'nextStep': ''
     }
 
@@ -1926,16 +1719,10 @@ def getFlow():
             dictStepConfig = getFixCommandFlow()
         case 'prContent2TestRegex':
             dictStepConfig = getPrContent2TestRegexFlow()
-        case 'tctest':
-            dictStepConfig = getTctestFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':
             dictStepConfig = getProperty2RequiredFlow()
-        case 'property':
-            dictStepConfig = getPropertyFlow()
-        case 'attribute':
-            dictStepConfig = getAttributeFlow()
         case 'customizeDiff':
             dictStepConfig = getCustomizeDiffFlow()
         case 'bumpApiVersion':

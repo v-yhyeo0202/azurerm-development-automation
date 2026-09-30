@@ -4,7 +4,6 @@ path:
   attachment: 'attachment'
   home: '/home/v-yyeo/'
   aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
-  terracorder: '/home/v-yyeo/terracorder'
   azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
   services: 'internal/services/manageddevopspools'
   document: 'website/docs'
@@ -71,8 +70,6 @@ port:
 
 # flattenProperty
 # property2Required
-# property
-# attribute
 # customizeDiff
 # bumpApiVersion
 flow: 'bumpApiVersion'
