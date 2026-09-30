@@ -6,7 +6,7 @@ with open('config.yml') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
 dictEnvironment = os.environ.copy()
-venvPath = os.path.join(dictConfig['path']['main'], f"venv-{dictConfig['path']['code']}", 'bin', 'activate')
+venvPath = os.path.join(dictConfig['path']['main'], 'venv-azurerm-development-automation', 'bin', 'activate')
 
 def initializePandoraDataApi(dictInput):
     process = subprocess.Popen(
@@ -22,7 +22,7 @@ def initializeHttpProxy(dictInput):
 
     for i in range(dictConfig['nHttpProxy']):
         listProcess.append(subprocess.Popen(
-            f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy'][i]['sender']} -q --set listenerPort={dictConfig['port']['httpProxy'][i]['listener']}",
+            f"source {venvPath}; mitmdump -s {os.path.join(dictConfig['path']['main'], 'proxy2FastApi.py')} -p {dictConfig['port']['httpProxy'][i]['sender']} -q --set listenerPort={dictConfig['port']['httpProxy'][i]['listener']}",
             env = dictEnvironment,
             executable = '/bin/bash',
             shell = True

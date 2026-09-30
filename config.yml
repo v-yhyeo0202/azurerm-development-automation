@@ -1,6 +1,5 @@
 path:
-  main: '/home/v-yyeo/azurerm-development-automation'
-  code: 'azurerm-development-automation'
+  main: '/home/v-yyeo/azurerm-development-automation/azurerm-development-automation'
   services: 'internal/services/manageddevopspools'
 
 defaultModel: 'claude-haiku-4.5'

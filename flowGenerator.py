@@ -16,7 +16,7 @@ def formatMultilineCommand(inputString):
 
 outputFormatPrompt = functools.partial(
     'Generate output in JSON format according to [`{_step}Output` class]({dataStructurePath}).'.format,
-    dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
+    dataStructurePath = os.path.join(dictConfig['path']['main'], 'dataStructure.py')
 )
 aiAssistedDevelopmentPath = 'terraform-azurerm-ai-installer'
 azurermPath = 'terraform-provider-azurerm'
