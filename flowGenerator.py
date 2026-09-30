@@ -18,30 +18,35 @@ outputFormatPrompt = functools.partial(
     'Generate output in JSON format according to [`{_step}Output` class]({dataStructurePath}).'.format,
     dataStructurePath = os.path.join(dictConfig['path']['main'], dictConfig['path']['code'], 'dataStructure.py')
 )
-servicePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'])
+aiAssistedDevelopmentPath = 'terraform-azurerm-ai-installer'
+azurermPath = 'terraform-provider-azurerm'
+pandoraPath = 'pandora'
+sdkPath = 'go-azure-sdk'
+locallyGeneratedSdkPath = os.path.join(dictConfig['path']['main'], 'locally-generated-go-sdk')
+servicePath = os.path.join(azurermPath, dictConfig['path']['services'])
 registrationPath = os.path.join(servicePath, 'registration.go')
-attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
-vendorSdkPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
+attachmentPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'])
+vendorSdkPath = os.path.join(azurermPath, 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk')
 pandoraService = dictConfig['pandoraServiceName'].lower() if not dictConfig['pandoraService'] else dictConfig['pandoraService']
 pandoraServiceName = dictConfig['pandoraServiceName']
 resourceFile = f"{dictConfig['resource']}_resource.go"
-resourcePath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], resourceFile)
+resourcePath = os.path.join(azurermPath, dictConfig['path']['services'], resourceFile)
 testFile = f"{dictConfig['resource']}_resource_test.go"
-testPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], testFile)
+testPath = os.path.join(azurermPath, dictConfig['path']['services'], testFile)
 pascalCaseResource = ''.join([i.capitalize() for i in dictConfig['resource'].split('_')])
 validateFuncTestFile = f"{dictConfig['resource']}_resource_vf_test.go"
-validateFuncTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], validateFuncTestFile)
+validateFuncTestPath = os.path.join(azurermPath, dictConfig['path']['services'], validateFuncTestFile)
 maxItemsTestFile = f"{dictConfig['resource']}_resource_mi_test.go"
-maxItemsTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], maxItemsTestFile)
+maxItemsTestPath = os.path.join(azurermPath, dictConfig['path']['services'], maxItemsTestFile)
 forceNewTestFile = f"{dictConfig['resource']}_resource_fn_test.go"
-forceNewTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], forceNewTestFile)
+forceNewTestPath = os.path.join(azurermPath, dictConfig['path']['services'], forceNewTestFile)
 planTimeCatchTestFile = f"{dictConfig['resource']}_resource_ptc_test.go"
-planTimeCatchTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], planTimeCatchTestFile)
+planTimeCatchTestPath = os.path.join(azurermPath, dictConfig['path']['services'], planTimeCatchTestFile)
 listResourceFile = f"{dictConfig['resource']}_resource_list.go"
 listResourcePath = os.path.join(servicePath, listResourceFile)
 listResourceTestFile = f"{dictConfig['resource']}_resource_list_test.go"
 listResourceTestPath = os.path.join(servicePath, listResourceTestFile)
-documentPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['document'])
+documentPath = os.path.join(azurermPath, 'website', 'docs')
 documentFile = f"{dictConfig['resource']}.html.markdown"
 resourceDocumentPath = os.path.join(documentPath, 'r', documentFile)
 dataSourceDocumentPath = os.path.join(documentPath, 'd', documentFile)
@@ -73,9 +78,9 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
-            'cwd': dictConfig['path']['aiAssistedDevelopment'],
+            'cwd': aiAssistedDevelopmentPath,
             'command': [
-                ['./install-copilot-setup.sh', '-repo-directory', dictConfig['path']['azurerm'], '-clean']
+                ['./install-copilot-setup.sh', '-repo-directory', azurermPath, '-clean']
             ]
         },
         'nextStep': 'UpdateAiAssistedDevelopment'
@@ -86,12 +91,11 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
-            'cwd': dictConfig['path']['home'],
             'command': [
-                ['rm', '-rf', dictConfig['path']['aiAssistedDevelopment']],
+                ['rm', '-rf', aiAssistedDevelopmentPath],
                 ['curl', '-L', '-o', '/tmp/terraform-azurerm-ai-installer.tar.gz', 'https://github.com/WodansSon/terraform-azurerm-ai-assisted-development/releases/latest/download/terraform-azurerm-ai-installer.tar.gz'],
-                ['mkdir', '-p', dictConfig['path']['aiAssistedDevelopment']],
-                ['tar', '-xzf', '/tmp/terraform-azurerm-ai-installer.tar.gz', '-C', dictConfig['path']['aiAssistedDevelopment'], '--strip-components=1']
+                ['mkdir', '-p', aiAssistedDevelopmentPath],
+                ['tar', '-xzf', '/tmp/terraform-azurerm-ai-installer.tar.gz', '-C', aiAssistedDevelopmentPath, '--strip-components=1']
             ]
         },
         'nextStep': 'RunAiAssistedDevelopment'
@@ -102,9 +106,9 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
-            'cwd': dictConfig['path']['aiAssistedDevelopment'],
+            'cwd': aiAssistedDevelopmentPath,
             'command': [
-                ['./install-copilot-setup.sh', '-repo-directory', dictConfig['path']['azurerm']]
+                ['./install-copilot-setup.sh', '-repo-directory', azurermPath]
             ]
         },
         'nextStep': 'GenerateEmptyRegistration'
@@ -133,8 +137,8 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'EditMainServiceClient'
     stepType = 'copilot'
-    mainServicePath = os.path.join(dictConfig['path']['azurerm'], 'internal', 'provider', 'services.go')
-    mainClientPath = os.path.join(dictConfig['path']['azurerm'], 'internal', 'clients', 'client.go')
+    mainServicePath = os.path.join(azurermPath, 'internal', 'provider', 'services.go')
+    mainClientPath = os.path.join(azurermPath, 'internal', 'clients', 'client.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
@@ -152,7 +156,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
         'type': stepType,
         'input': [
             {
-                'prompt': f"Check if [local Go Azure SDK with exact version]({vendorSdkPath}) of {dictConfig['resource']} exists according to [specification]({dictConfig['specification']}). If not, check if the SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). If the SDK with exact version exists in the repository, check the SDK package path to be imported. Do not consider content in {dictConfig['path']['sdk']} and {dictConfig['path']['locallyGeneratedSdk']}."
+                'prompt': f"Check if [local Go Azure SDK with exact version]({vendorSdkPath}) of {dictConfig['resource']} exists according to [specification]({dictConfig['specification']}). If not, check if the SDK with exact version exists in [repository](https://github.com/hashicorp/go-azure-sdk/tree/main/resource-manager). If the SDK with exact version exists in the repository, check the SDK package path to be imported. Do not consider content in {sdkPath} and {locallyGeneratedSdkPath}."
             },
             {
                 'prompt': outputFormatPrompt(_step = step)
@@ -174,7 +178,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
-            'cwd': dictConfig['path']['pandora'],
+            'cwd': pandoraPath,
             'command': [
                 ['git', 'restore', '.'],
                 ['git', 'clean', '-d', '-f'],
@@ -194,8 +198,8 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'GenerateApiVersion'
     stepType = 'copilot'
-    resourceManagerPath = os.path.join(dictConfig['path']['pandora'], 'config', 'resource-manager.hcl')
-    dataApiServerPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'data-api', 'internal', 'commands', 'serve.go')
+    resourceManagerPath = os.path.join(pandoraPath, 'config', 'resource-manager.hcl')
+    dataApiServerPath = os.path.join(pandoraPath, 'tools', 'data-api', 'internal', 'commands', 'serve.go')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': [
@@ -214,7 +218,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'GenerateApiDefinition'
     stepType = 'command'
-    workingDirectoryPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'importer-rest-api-specs')
+    workingDirectoryPath = os.path.join(pandoraPath, 'tools', 'importer-rest-api-specs')
     dictEnvironment = {
         'SERVICES': pandoraServiceName
     }
@@ -234,10 +238,10 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'GenerateSdkWithPandora'
     stepType = 'command'
-    workingDirectoryPath = os.path.join(dictConfig['path']['pandora'], 'tools', 'generator-go-sdk')
+    workingDirectoryPath = os.path.join(pandoraPath, 'tools', 'generator-go-sdk')
     dataApiUrl = f"http://localhost:{dictConfig['port']['dataApi']}"
-    sourceSdkPath = os.path.join(dictConfig['path']['locallyGeneratedSdk'], 'resource-manager', pandoraServiceName.lower())
-    destinationSdkPath = os.path.join(dictConfig['path']['sdk'], 'resource-manager')
+    sourceSdkPath = os.path.join(locallyGeneratedSdkPath, 'resource-manager', pandoraServiceName.lower())
+    destinationSdkPath = os.path.join(sdkPath, 'resource-manager')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
@@ -245,7 +249,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
             'command': [
                 ['rm', '-rf', sourceSdkPath],
                 ['go', 'build', '.'],
-                ['./generator-go-sdk', 'resource-manager', 'generate', '--output-dir', dictConfig['path']['locallyGeneratedSdk'], '--services', pandoraServiceName, '--data-api', dataApiUrl],
+                ['./generator-go-sdk', 'resource-manager', 'generate', '--output-dir', locallyGeneratedSdkPath, '--services', pandoraServiceName, '--data-api', dataApiUrl],
             ]
         },
         'nextStep': 'UpdateGoAzureSdk'
@@ -253,12 +257,12 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'UpdateGoAzureSdk'
     stepType = 'command'
-    sourceSdkPath = os.path.join(dictConfig['path']['locallyGeneratedSdk'], 'resource-manager', pandoraServiceName.lower())
-    destinationSdkPath = os.path.join(dictConfig['path']['sdk'], 'resource-manager')
+    sourceSdkPath = os.path.join(locallyGeneratedSdkPath, 'resource-manager', pandoraServiceName.lower())
+    destinationSdkPath = os.path.join(sdkPath, 'resource-manager')
     dictStepConfig['step'][step] = {
         'type': stepType,
         'input': {
-            'cwd': dictConfig['path']['sdk'],
+            'cwd': sdkPath,
             'command': [
                 ['git', 'restore', '.'],
                 ['git', 'clean', '-d', '-f'],
@@ -276,7 +280,7 @@ def getAiAssistedDevelopment2ReplaceDirectiveFlow():
 
     step = 'GenerateReplaceDirective'
     stepType = 'copilot'
-    goModPath = os.path.join(dictConfig['path']['azurerm'], 'go.mod')
+    goModPath = os.path.join(azurermPath, 'go.mod')
     outputSavePath = os.path.join(attachmentPath, f'{step}Output.json')
     dictStepConfig['step'][step] = {
         'type': stepType,
@@ -384,7 +388,7 @@ def getSchemaFlow():
 
     step = 'GenerateSchema'
     stepType = 'copilot'
-    commonSchemaPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-helpers', 'resourcemanager', 'commonschema')
+    commonSchemaPath = os.path.join(azurermPath, 'vendor', 'github.com', 'hashicorp', 'go-azure-helpers', 'resourcemanager', 'commonschema')
     
     listRule = [
         '1. Generate resource schema (`Arguments`), `Attributes` (can be empty if not applicable), `ModelObject`, `ResourceType`, and `IDValidationFunc` methods in sequence and other relevant codes.',
@@ -416,7 +420,7 @@ def getSchemaFlow():
     step = 'GenerateBehavior'
     stepType = 'copilot'
     updatePath = os.path.join(vendorSdkPath, pandoraServiceName.lower(), '*', '*', 'method*update.go')
-    validationPath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
+    validationPath = os.path.join(azurermPath, 'vendor', 'github.com', 'terraform-provider-azurerm', 'internal', 'tf', 'validation')
     listRule = [
         '1. Apply `Required` behavior to properties according to specification. Otherwise, apply `Optional` behavior.',
         f'2. Apply `ForceNew` behavior to properties which are absent from [`Update` method argument of Go Azure SDK]({updatePath}).',
@@ -622,7 +626,7 @@ def getCrud2BasicTestFlow():
     step = 'GenerateBasicTest'
     stepType = 'copilot'
     resourceListPath = os.path.join(attachmentPath, 'GetResourceListOutput.json')
-    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
+    existingTestPath = os.path.join(azurermPath, dictConfig['path']['services'], f"*_resource_test.go")
     listRule = [
         f'1. Refer to [list of resources to be created]({resourceListPath}).'
         f"2. Refer to [specification]({dictConfig['specification']}) to understand the properties.",
@@ -772,7 +776,7 @@ def getOtherTestFlow():
 
     step = 'GenerateUpdateTest'
     stepType = 'copilot'
-    existingTestPath = os.path.join(dictConfig['path']['azurerm'], dictConfig['path']['services'], f"*_resource_test.go")
+    existingTestPath = os.path.join(azurermPath, dictConfig['path']['services'], f"*_resource_test.go")
     listRule = [
         f'1. `TestAcc{pascalCaseResource}_update` should include `basic` and `complete` methods in sequence.',
         f'2. Do not have to run `basic` method after `complete`.'
@@ -1477,7 +1481,7 @@ def getFixCommandFlow():
 
     return dictStepConfig
 
-def getPrContent2TestRegexFlow():
+def getPrContentFlow():
     dictStepConfig = {
         'step': {},
         'firstStep': 'GetDocumentationLink'
@@ -1510,11 +1514,11 @@ def getPrContent2TestRegexFlow():
     stepType = 'copilot'
     identityTestFile = f"{dictConfig['resource']}_resource_identity_gen_test.go"
     listExcludedFile = [
-        f"1. {os.path.join(dictConfig['path']['azurerm'], 'go.mod')}",
-        f"2. {os.path.join(dictConfig['path']['azurerm'], 'go.sum')}",
-        f"3. {os.path.join(dictConfig['path']['azurerm'], 'vendor', '*')}",
-        f"4. {os.path.join(dictConfig['path']['azurerm'], '.github', '*')}",
-        f"5. {os.path.join(dictConfig['path']['azurerm'], '.teamcity', 'components', 'generated', '*')}",
+        f"1. {os.path.join(azurermPath, 'go.mod')}",
+        f"2. {os.path.join(azurermPath, 'go.sum')}",
+        f"3. {os.path.join(azurermPath, 'vendor', '*')}",
+        f"4. {os.path.join(azurermPath, '.github', '*')}",
+        f"5. {os.path.join(azurermPath, '.teamcity', 'components', 'generated', '*')}",
         f"6. {os.path.join(servicePath, identityTestFile)}",
         f"7. {os.path.join(servicePath, 'testdata', '*')}"
     ]
@@ -1543,38 +1547,6 @@ def getPrContent2TestRegexFlow():
             'overwrite': True,
             'path': prContentPath
         },
-        'nextStep': ''
-    }
-
-    return dictStepConfig
-
-def getTctestFlow():
-    dictStepConfig = {
-        'step': {},
-        'firstStep': 'tctest'
-    }
-
-    step = 'tctest'
-    stepType = 'command'
-    listCommand = ['tctest', 'pr', '-c', '-q', dictConfig['pr']]
-    property4 = ''
-    property5 = 'env.ARM_FIVEPOINTZERO_BETA=true'
-
-    if dictConfig['parallelism']:
-        property4 = f"{property4}{';' if property4 else ''}PARALLELISM={dictConfig['parallelism']}"
-        property5 = f"{property5};PARALLELISM={dictConfig['parallelism']}"
-
-    outputSavePath = os.path.join(attachmentPath, 'tctestOutput.json')
-    dictStepConfig['step'][step] = {
-        'type': stepType,
-        'input': {
-            'command': [
-                ['go', 'install', 'github.com/katbyte/tctest@latest'],
-                listCommand + ['--properties', property4] if property4 else listCommand,
-                listCommand + ['--properties', property5]
-            ]
-        },
-        'outputSavePath': outputSavePath,
         'nextStep': ''
     }
 
@@ -1717,8 +1689,8 @@ def getFlow():
             dictStepConfig = getDocumentFlow()
         case 'fixCommand':
             dictStepConfig = getFixCommandFlow()
-        case 'prContent2TestRegex':
-            dictStepConfig = getPrContent2TestRegexFlow()
+        case 'prContent':
+            dictStepConfig = getPrContentFlow()
         case 'flattenProperty':
             dictStepConfig = getFlattenPropertyFlow()
         case 'property2Required':

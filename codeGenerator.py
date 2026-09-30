@@ -10,7 +10,7 @@ header = '''
 // SPDX-License-Identifier: MPL-2.0
 '''.strip()
 service = dictConfig['path']['services'].split('/')[-1]
-attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
+attachmentPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'])
 
 def generateEmptyRegistration():
     emptyRegistration = f'''

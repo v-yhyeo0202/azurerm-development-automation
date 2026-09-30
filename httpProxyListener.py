@@ -26,11 +26,11 @@ async def logHttp(httpLog: dataStructure.HttpLog):
 
 @app.get('/saveHttpLog')
 async def saveHttpLog(savePath: str):
-    logPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], savePath)
+    logPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'], savePath)
 
     if os.path.exists(logPath):
         renamedFile = f"{savePath.split('.')[0]}_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.{savePath.split('.')[1]}"
-        renamedPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], renamedFile)
+        renamedPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'], renamedFile)
         os.rename(logPath, renamedPath)
 
     lock.acquire()

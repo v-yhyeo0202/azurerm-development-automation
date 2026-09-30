@@ -1,15 +1,7 @@
 path:
   main: '/home/v-yyeo/azurerm-development-automation'
   code: 'azurerm-development-automation'
-  attachment: 'attachment'
-  home: '/home/v-yyeo/'
-  aiAssistedDevelopment: '/home/v-yyeo/.terraform-azurerm-ai-installer'
-  azurerm: '/home/v-yyeo/terraform-provider-azurerm-1/terraform-provider-azurerm'
   services: 'internal/services/manageddevopspools'
-  document: 'website/docs'
-  pandora: '/home/v-yyeo/pandora-0/pandora'
-  sdk: '/home/v-yyeo/go-azure-sdk'
-  locallyGeneratedSdk: '/home/v-yyeo/locally-generated-go-sdk'
 
 defaultModel: 'claude-haiku-4.5'
 resource: 'managed_devops_pool'
@@ -63,10 +55,8 @@ port:
 # fixCommand
 # Check if fix command is correct
 # Review with `terraform-azurerm-ai-assisted-development`
-# prContent2TestRegex
+# prContent
 # Create PR
-# Run test in TeamCity
-# tctest
 
 # flattenProperty
 # property2Required
@@ -86,23 +76,11 @@ testRegex: '_\w*'
 # changePropertyName
 propertyNameMap:
 
-# tctest
-pr: '31317'
-parallelism:
-
 # flattenProperty
 flattenParentProperty: 'image'
 
 # property2Required
 requiredProperty:
-  - ''
-
-# property
-generatedProperty:
-  - 'SmbSetting.EncryptionInTransit'
-
-# attribute
-generatedAttribute:
   - ''
 
 # bumpApiVersion

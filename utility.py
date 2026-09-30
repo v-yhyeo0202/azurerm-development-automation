@@ -7,7 +7,7 @@ import yaml
 with open('config.yml', 'r') as f:
     dictConfig = yaml.load(f, Loader = yaml.FullLoader)
 
-attachmentPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'])
+attachmentPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'])
 
 def bumpApiVersion(dictInput):
     sdkServicePath = os.path.join(dictConfig['path']['azurerm'], 'vendor', 'github.com', 'hashicorp', 'go-azure-sdk', 'resource-manager', dictConfig['sdkServiceName'])

@@ -15,7 +15,7 @@ try:
     dictStepConfig = flowGenerator.getFlow()
     step = dictStepConfig['firstStep']
     dictOutput = None
-    os.makedirs(os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource']), exist_ok = True)
+    os.makedirs(os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource']), exist_ok = True)
 
     while step:
         print(f'Step: {step}')
@@ -56,7 +56,7 @@ try:
         if 'outputSavePath' in dictCurrentStepConfig:
             if 'bKeepSaveFile' in dictCurrentStepConfig and dictCurrentStepConfig['bKeepSaveFile'] and os.path.exists(dictCurrentStepConfig['outputSavePath']):
                 renamedFile = f"{dictCurrentStepConfig['outputSavePath'].split('.')[0]}_{datetime.datetime.now().strftime('%d-%m-%Y_%H-%M-%S')}.{dictCurrentStepConfig['outputSavePath'].split('.')[1]}"
-                renamedPath = os.path.join(dictConfig['path']['main'], dictConfig['path']['attachment'], dictConfig['resource'], renamedFile)
+                renamedPath = os.path.join(dictConfig['path']['main'], 'attachment', dictConfig['resource'], renamedFile)
                 os.rename(dictCurrentStepConfig['outputSavePath'], renamedPath)
 
             with open(dictCurrentStepConfig['outputSavePath'], 'w', encoding = 'utf-8') as f:
