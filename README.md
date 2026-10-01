@@ -17,7 +17,7 @@ This is an automation application aims to automate the development in [`terrafor
 
 4. Configure [`config.yml`](#configurations).
 
-5. Activate virtual environment and run the workflow.
+5. Activate virtual environment and run the workflow. The changes will be done in `terraform-provider-azurerm` submodule.
     ```bash
     source venv-azurerm-development-automation
     python main.py

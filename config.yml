@@ -1,12 +1,12 @@
 path:
-  main: '/home/v-yyeo/azurerm-development-automation/azurerm-development-automation'
+  main: '/home/v-yyeo/azurerm-development-automation'
   services: 'internal/services/manageddevopspools'
 
 defaultModel: 'claude-haiku-4.5'
 resource: 'managed_devops_pool'
-clientResource: ''
+clientResource: 'Pools' # client.go
 specification: 'https://github.com/Azure/azure-rest-api-specs/blob/main/specification/devopsinfrastructure/resource-manager/Microsoft.DevOpsInfrastructure/DevOpsInfrastructure/stable/2026-06-02/devopsinfrastructure.json'
-clientServiceName: 'Pools'
+clientServiceName: '' # registration.go
 pandoraService: ''
 pandoraServiceName: 'DevOpsInfrastructure'
 sdkServiceName: 'devopsinfrastructure'
