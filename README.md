@@ -19,7 +19,7 @@ This is an automation application aims to automate the development in [`terrafor
 
 5. Activate virtual environment and run the workflow. The changes will be done in `terraform-provider-azurerm` submodule.
     ```bash
-    source venv-azurerm-development-automation
+    source venv-azurerm-development-automation/bin/activate
     python main.py
     ```
 
